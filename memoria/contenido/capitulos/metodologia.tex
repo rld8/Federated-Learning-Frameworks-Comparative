@@ -1,0 +1,319 @@
+\chapter{Metodología}\label{chap:metodologia}
+
+% Barrera de flotantes: evita que las tablas migren de sección. Si el paquete
+% placeins esta cargado se usa su \FloatBarrier; si no, se recurre a \clearpage.
+\providecommand{\FloatBarrier}{\clearpage}
+
+Este capítulo describe la metodología seguida para comparar de forma experimental los tres
+\textit{frameworks} de aprendizaje federado seleccionados: Flower, NVIDIA FLARE y FedML. Se
+presentan primero el entorno de trabajo y el equipo sobre el que se ejecutaron las pruebas, y a
+continuación el marco de evaluación, que se articula en tres ejes: una comparativa cuantitativa
+de rendimiento y dos comparativas cualitativas, de usabilidad y de flexibilidad. Para cada eje se
+detallan las métricas, las rúbricas y los criterios empleados. El capítulo termina con las
+medidas adoptadas para garantizar la reproducibilidad y el control de variables, y con el alcance
+y las limitaciones del estudio. El escenario de entrenamiento común y la batería concreta de
+experimentos se describen en el Capítulo~\ref{chap:experimentos}.
+
+\section{Entorno de trabajo}\label{sec:entorno-trabajo}
+
+Todos los experimentos se ejecutaron sobre el mismo equipo y bajo el mismo sistema operativo, de
+modo que el entorno físico no introdujera diferencias entre las herramientas comparadas. Las
+ejecuciones se realizaron sobre un equipo portátil con procesador Intel Core i7-13700H de 13.\textsuperscript{a}
+generación (20 CPU lógicas), 14\,GiB de memoria RAM y una GPU NVIDIA GeForce RTX 3050 Laptop con
+6\,GB de memoria de vídeo (VRAM), bajo Ubuntu 26.04 LTS. La GPU fue detectada correctamente por
+PyTorch en los tres entornos.
+
+Cada \textit{framework} se ejecutó, sin embargo, en un entorno Conda independiente, con versiones
+distintas de Python, PyTorch y CUDA, debido a las dependencias propias de cada herramienta. La
+Tabla~\ref{tab:entornos} recoge las versiones exactas empleadas. Esta diferencia se reconoce como
+una amenaza menor a la validez de la comparación de rendimiento; se mitiga dejando registradas las
+versiones de cada caso, lo que además favorece la reproducibilidad.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Versiones de software empleadas en cada entorno de ejecución.}
+  \label{tab:entornos}
+  \begin{tabular}{llllll}
+    \toprule
+    \textit{Framework} & Entorno & Python & Versión & PyTorch & CUDA \\
+    \midrule
+    Flower       & tfg-flower & 3.12.13 & 1.29.0 & 2.11.0+cu128 & 12.8 \\
+    NVIDIA FLARE & nvflare    & 3.12.13 & 2.7.2  & 2.11.0+cu130 & 13.0 \\
+    FedML        & fedml-tfg  & 3.10.20 & 0.9.6  & 2.12.0+cu126 & 12.6 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Comparativa de rendimiento: métricas e instrumentación}\label{sec:metricas-rendimiento}
+
+La comparativa de rendimiento es la parte cuantitativa del estudio. Distingue entre métricas de
+aprendizaje, que describen la calidad del modelo obtenido, y métricas de consumo de recursos, que
+describen el coste de obtenerlo. Las métricas de aprendizaje son la precisión (\textit{accuracy})
+y la pérdida (\textit{loss}) del modelo global sobre el conjunto de prueba centralizado, junto con
+la pérdida media de entrenamiento. La evaluación sobre el conjunto de prueba se realiza de forma
+externa al entrenamiento, cargando el modelo global final y midiendo su comportamiento sobre las
+10\,000 imágenes reservadas, de modo idéntico para los tres \textit{frameworks}.
+
+Las métricas de consumo de recursos se recogen durante toda la ejecución y se resumen en la
+Tabla~\ref{tab:metricas}. Para la GPU se muestrea cada segundo la memoria utilizada, la
+utilización del núcleo, la potencia instantánea y la temperatura mediante \texttt{nvidia-smi}. El
+tiempo total de ejecución y la memoria residente máxima del proceso se obtienen con
+\texttt{/usr/bin/time -v}, y la evolución de la memoria del sistema se registra con
+\texttt{vmstat}.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Métricas de rendimiento recogidas en cada ejecución y herramienta de medida.}
+  \label{tab:metricas}
+  \begin{tabular}{lll}
+    \toprule
+    Métrica & Unidad & Fuente \\
+    \midrule
+    Precisión del modelo global   & ---            & Evaluación centralizada \\
+    Pérdida del modelo global     & ---            & Evaluación centralizada \\
+    Tiempo de ejecución           & s              & \texttt{/usr/bin/time -v} \\
+    Memoria de GPU (máx. y media) & MiB            & \texttt{nvidia-smi} \\
+    Utilización de GPU            & \%             & \texttt{nvidia-smi} \\
+    Potencia                      & W              & \texttt{nvidia-smi} \\
+    Energía estimada              & Wh             & Cálculo (Ec.~\ref{eq:energia}) \\
+    Temperatura de GPU            & \textdegree C  & \texttt{nvidia-smi} \\
+    Memoria residente máxima      & KiB            & \texttt{/usr/bin/time -v} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La energía no se mide con un vatímetro, sino que se estima a partir de la potencia muestreada. Si
+se toman $N$ lecturas de potencia $P_i$ a lo largo de una ejecución de duración $T$ segundos, la
+energía estimada en vatios-hora se obtiene como el producto de la potencia media por la duración,
+expresado en horas:
+
+\begin{equation}
+  E_{\text{Wh}} = \frac{1}{3600}\left(\frac{1}{N}\sum_{i=1}^{N} P_i\right) T .
+  \label{eq:energia}
+\end{equation}
+
+Se trata, por tanto, de una estimación basada en el muestreo de potencia, adecuada para comparar
+herramientas entre sí en igualdad de condiciones, pero que no debe interpretarse como una medida
+absoluta de consumo eléctrico.
+
+\FloatBarrier
+\section{Comparativa de usabilidad: marco y rúbrica}\label{sec:criterios-usabilidad}
+
+La comparativa de usabilidad es cualitativa y persigue valorar qué \textit{framework} resulta más
+sencillo de utilizar desde el punto de vista del desarrollador. No se plantea como un estudio de
+experiencia de usuario con participantes, sino como una rúbrica de evaluación experta aplicada por
+el autor del trabajo, apoyada en evidencias registradas durante la implementación: documentación
+consultada, pasos de instalación, errores encontrados, claridad de los registros, facilidad para
+configurar los experimentos y capacidad de modificación de cada herramienta.
+
+El marco de valoración se organiza en torno a cuatro dimensiones de la experiencia de uso
+—\textit{useful}, \textit{usable}, \textit{desirable} y \textit{accessible}— inspiradas en el
+modelo de experiencia de usuario de \textcite{morville2004ux}. La dimensión
+\textit{usable} se apoya además en la norma ISO 9241-11, que define la usabilidad en términos de
+eficacia, eficiencia y satisfacción en un contexto de uso~\parencite{iso924111}, y en la
+descomposición de la usabilidad en aprendizaje, eficiencia, errores y satisfacción del Nielsen
+Norman Group~\parencite{nielsen1994usability}. Para la dimensión \textit{accessible} se adapta la
+noción de accesibilidad del W3C al contexto de las herramientas software, entendida como facilidad
+de acceso a la documentación, los ejemplos, la instalación y los mensajes
+comprensibles~\parencite{w3cwcag}. La Tabla~\ref{tab:rubrica-ux} concreta los subcriterios de cada
+dimensión.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Rúbrica de usabilidad. Cada subcriterio se valora con una escala de 1 a 5.}
+  \label{tab:rubrica-ux}
+  \begin{tabular}{>{\bfseries}l p{0.52\textwidth} p{0.20\textwidth}}
+    \toprule
+    \normalfont Dimensión & \normalfont Subcriterios concretos & \normalfont Cómo se mide \\
+    \midrule
+    Useful &
+    Permite implementar FedAvg, usar CIFAR-10 y ResNet-18, registrar métricas, ejecutar varios
+    clientes y reproducir experimentos &
+    Escala 1--5 según cobertura funcional \\
+    \addlinespace
+    Usable &
+    Instalación, configuración, curva de aprendizaje, claridad de la estructura, facilidad para
+    lanzar experimentos y claridad de errores y registros &
+    Escala 1--5 según esfuerzo y problemas encontrados \\
+    \addlinespace
+    Desirable &
+    Sensación práctica como desarrollador: comodidad, limpieza de la API, orden del proyecto,
+    confianza al trabajar y experiencia de depuración &
+    Escala 1--5 con justificación cualitativa \\
+    \addlinespace
+    Accessible &
+    Documentación accesible, ejemplos disponibles, guías actualizadas, mensajes comprensibles,
+    requisitos claros y facilidad para empezar sin conocimiento previo profundo &
+    Escala 1--5 según barreras de entrada \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El significado de la escala se detalla en la Tabla~\ref{tab:escala-ux}. Para mitigar la
+subjetividad inherente a este tipo de valoración, los mismos subcriterios y la misma escala se
+aplican por igual a los tres \textit{frameworks}, y cada puntuación se acompaña de la evidencia que
+la justifica. Aun así, se reconoce que la valoración refleja el juicio del autor como
+desarrollador, lo que se hace constar como limitación en la
+Sección~\ref{sec:alcance-limitaciones}.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Escala de valoración empleada en la rúbrica de usabilidad.}
+  \label{tab:escala-ux}
+  \begin{tabular}{cl}
+    \toprule
+    Puntuación & Significado \\
+    \midrule
+    1 & Muy deficiente: difícil de usar o con barreras importantes \\
+    2 & Deficiente: usable solo con bastante esfuerzo \\
+    3 & Aceptable: permite trabajar, pero con limitaciones claras \\
+    4 & Bueno: relativamente claro y práctico \\
+    5 & Muy bueno: sencillo, claro, completo y bien documentado \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\FloatBarrier
+\section{Análisis de flexibilidad: criterios}\label{sec:criterios-flexibilidad}
+
+La flexibilidad se trata como un eje separado de la usabilidad. Mientras que la usabilidad recoge
+la percepción de uso, la flexibilidad describe una propiedad arquitectónica: hasta qué punto la
+herramienta permite adaptarse a escenarios o necesidades distintos de los previstos por defecto.
+Interesa distinguir entre un \textit{framework} cerrado, limitado a las funcionalidades que ya
+proporciona, y uno que permite integrar soluciones externas o modificar su funcionamiento.
+
+La valoración se realiza mediante una rúbrica de tres niveles (Tabla~\ref{tab:escala-flex}) sobre
+el conjunto de criterios de la Tabla~\ref{tab:criterios-flex}. Estos criterios definen qué se
+evalúa en cada caso; la valoración concreta de cada \textit{framework} se presenta en el capítulo
+de resultados de usabilidad y flexibilidad.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Escala de valoración empleada en el análisis de flexibilidad.}
+  \label{tab:escala-flex}
+  \begin{tabular}{cl}
+    \toprule
+    Puntuación & Significado \\
+    \midrule
+    0 & No soportado o no identificado en la documentación ni en los experimentos \\
+    1 & Posible, pero con limitaciones, código manual o soporte experimental \\
+    2 & Soporte claro, documentado y relativamente directo \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Criterios de flexibilidad evaluados. Cada criterio se valora de 0 a 2.}
+  \label{tab:criterios-flex}
+  \begin{tabular}{>{\ttfamily}l p{0.30\textwidth} p{0.46\textwidth}}
+    \toprule
+    \normalfont Código & \normalfont Criterio & \normalfont Qué se evalúa \\
+    \midrule
+    F1 & Personalización del modelo y el dataset &
+    Posibilidad de usar modelos y conjuntos de datos propios, y librerías como PyTorch o
+    torchvision, sin rehacer toda la arquitectura. \\
+    \addlinespace
+    F2 & Personalización del entrenamiento local &
+    Facilidad para modificar el bucle de entrenamiento, el optimizador, la función de pérdida, las
+    métricas, las épocas locales, el tamaño de lote y la lógica del cliente. \\
+    \addlinespace
+    F3 & Estrategias de agregación personalizadas &
+    Capacidad para implementar o sustituir FedAvg por agregadores propios. \\
+    \addlinespace
+    F4 & Algoritmos federados disponibles &
+    Disponibilidad o facilidad de uso de FedAvg, FedProx, FedOpt, SCAFFOLD u otros algoritmos
+    avanzados. \\
+    \addlinespace
+    F5 & Soporte de aprendizaje federado asíncrono &
+    Posibilidad de entrenamiento asíncrono de forma nativa, experimental o solo mediante
+    modificaciones profundas. La asincronía reduce las esperas por clientes lentos, pero introduce
+    el problema de las actualizaciones obsoletas. \\
+    \addlinespace
+    F6 & Modos de ejecución y despliegue &
+    Soporte de simulación local, ejecución multiproceso, ejecución distribuida y escenarios
+    \textit{cross-silo}, \textit{cross-device} o despliegue real. \\
+    \addlinespace
+    F7 & Integración con herramientas externas &
+    Integración con PyTorch, TensorFlow, scikit-learn, Docker, herramientas de registro y
+    seguimiento de métricas (MLflow, W\&B) o scripts propios. \\
+    \addlinespace
+    F8 & Seguridad, privacidad y extensiones avanzadas &
+    Posibilidad de añadir privacidad diferencial, agregación segura, filtros, cifrado o políticas
+    de seguridad. \\
+    \addlinespace
+    F9 & Modificación de la arquitectura federada &
+    Capacidad de alterar el flujo general: además del esquema servidor-cliente clásico, esquemas
+    cíclicos, \textit{swarm}, \textit{split learning} o validación cruzada entre sitios. \\
+    \addlinespace
+    F10 & Reproducibilidad y configuración &
+    Posibilidad de expresar la configuración mediante ficheros, scripts o recetas, y de repetir
+    experimentos cambiando pocos parámetros. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Reproducibilidad y control de variables}\label{sec:reproducibilidad}
+
+Además del entorno descrito en la Sección~\ref{sec:entorno-trabajo}, el estudio adopta varias
+medidas orientadas a la reproducibilidad y al control de las variables experimentales.
+
+El control de variables descansa en mantener constantes, entre dos ejecuciones cualesquiera, el
+conjunto de datos, el modelo y los hiperparámetros —y un particionamiento IID equivalente entre
+herramientas, en el sentido precisado en la Sección~\ref{sec:datos}—, definidos en el
+Capítulo~\ref{chap:experimentos}, de manera que las únicas variables sean el \textit{framework}
+evaluado y el modo de ejecución. La reproducibilidad se refuerza fijando una semilla aleatoria
+común (con valor 42) en los generadores de \texttt{random}, NumPy y PyTorch, y estableciendo
+además la semilla de \texttt{hash} del intérprete. Cada configuración se ejecutó una única vez con
+esa semilla; por tanto, las métricas se reportan como valores de una sola ejecución y no como
+media y desviación típica de varias repeticiones. Esta decisión, motivada por el elevado coste
+temporal de los experimentos más largos, se asume como una limitación en la
+Sección~\ref{sec:alcance-limitaciones}. Por último, antes de cada ejecución se guarda una
+instantánea del entorno —listado de paquetes, exportación del entorno Conda, salida de
+\texttt{nvidia-smi} y de \texttt{lscpu}, y revisión del repositorio— que permite trazar las
+condiciones exactas de cada corrida. Además, el código de la implementación, los \textit{scripts} de ejecución y los ficheros de configuración de los tres \textit{frameworks} se han publicado en un repositorio público abierto~\parencite{lujan2026repo}, de modo que el estudio puede reproducirse de forma independiente.
+
+\section{Alcance y limitaciones del estudio}\label{sec:alcance-limitaciones}
+
+El estudio compara tres \textit{frameworks} (Flower, NVIDIA FLARE y FedML) sobre un escenario
+controlado: CIFAR-10 con partición IID, modelo ResNet-18, algoritmo FedAvg, entre cuatro y diez
+clientes simulados en una única máquina, entre diez y treinta rondas, y los modos de ejecución
+secuencial y concurrente. La evaluación combina una comparativa cuantitativa de rendimiento con
+una comparativa cualitativa de usabilidad y flexibilidad. Quedan fuera del alcance los datos
+reales de entornos federados, los clientes distribuidos geográficamente, los algoritmos federados
+distintos de FedAvg en la parte cuantitativa y los mecanismos de ataque o defensa de la
+privacidad.
+
+La principal limitación es de hardware. La GPU de 6\,GB y los 14\,GiB de memoria RAM condicionaron
+el modo concurrente en las tres herramientas, aunque de formas distintas. En Flower, la simulación
+se apoya en Ray y el factor limitante fue la memoria RAM del sistema: al alcanzar ciertos umbrales,
+Ray terminaba procesos o actores, un comportamiento que se mantuvo con independencia de ajustes
+como reducir el número de procesos de carga de datos o liberar la caché. En NVIDIA FLARE, aumentar
+la concurrencia mediante el número de hilos implica más procesos y clientes activos a la vez, lo
+que resultó limitado por la memoria y el número de procesos en la simulación concurrente; no se
+afirma que se produjera un agotamiento de memoria de GPU, al no disponer de un registro que lo
+demuestre. En FedML, el backend MPI sí proporcionó concurrencia real entre procesos de cliente,
+pero se mostró más sensible al consumo de memoria y podía fallar por falta de recursos en las
+configuraciones más grandes. Ningún \textit{framework} quedó, por tanto, libre de impacto en el
+modo concurrente, si bien FedML con MPI fue el único que representó una concurrencia real entre procesos.
+
+A esta limitación se añaden otras que conviene tener presentes al interpretar los resultados.
+Primero, cada herramienta se ejecutó en un entorno software distinto, con versiones diferentes de
+Python, PyTorch y CUDA, lo que constituye una amenaza menor a la validez de la comparación de
+rendimiento, mitigada al documentar las versiones exactas. Segundo, los experimentos se limitan a
+una distribución IID, por lo que no se evalúa el efecto de la heterogeneidad no~IID. Tercero, los
+hiperparámetros se fijaron a priori, sin optimización individual por \textit{framework}, de modo
+que los resultados corresponden a esa configuración concreta. Cuarto, cada configuración se
+ejecutó una sola vez con una semilla fija, de modo que no se dispone de medidas de variabilidad
+entre repeticiones y los valores deben interpretarse como una única observación por configuración.
+Quinto, toda la experimentación se
+realiza en simulación sobre una sola máquina, por lo que no se miden latencias de red reales ni
+efectos propios de un despliegue distribuido. Por último, las métricas de consumo de recursos
+dependen del hardware empleado y solo deben extrapolarse con cautela a otros equipos; las
+valoraciones de usabilidad y flexibilidad son más generales, pero incorporan el juicio del autor.

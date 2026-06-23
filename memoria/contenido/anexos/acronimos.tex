@@ -1,0 +1,230 @@
+
+% --- Aprendizaje automático y federado ---
+\newacronym{sgd}{SGD}{Stochastic Gradient Descent}
+\newacronym{fl}{FL}{Federated Learning}
+\newacronym{fedavg}{FedAvg}{Federated Averaging}
+\newacronym{fedprox}{FedProx}{Federated Proximal}
+\newacronym{fedopt}{FedOpt}{Federated Optimization}
+\newacronym{iid}{IID}{Independent and Identically Distributed}
+
+% --- Hardware y cómputo ---
+\newacronym{cpu}{CPU}{Central Processing Unit}
+\newacronym{gpu}{GPU}{Graphics Processing Unit}
+\newacronym{ram}{RAM}{Random Access Memory}
+\newacronym{vram}{VRAM}{Video Random Access Memory}
+\newacronym{cuda}{CUDA}{Compute Unified Device Architecture}
+\newacronym{mpi}{MPI}{Message Passing Interface}
+\newacronym{nvml}{NVML}{NVIDIA Management Library}
+
+% --- Software, comunicación y formatos ---
+\newacronym{api}{API}{Application Programming Interface}
+\newacronym{sdk}{SDK}{Software Development Kit}
+\newacronym{grpc}{gRPC}{gRPC Remote Procedure Call}
+\newacronym{tls}{TLS}{Transport Layer Security}
+\newacronym{json}{JSON}{JavaScript Object Notation}
+
+% --- Seguridad y privacidad ---
+\newacronym{dp}{DP}{Differential Privacy}
+\newacronym{psi}{PSI}{Private Set Intersection}
+
+% --- Normativa y organismos ---
+\newacronym{iso}{ISO}{International Organization for Standardization}
+\newacronym{w3c}{W3C}{World Wide Web Consortium}
+
+% --- Académicos / del trabajo ---
+\newacronym{oe}{OE}{Objetivo Específico}
+\newacronym{eps}{EPS}{Escuela Politécnica Superior}
+\newacronym{ua}{UA}{Universidad de Alicante}
+\newacronym{tfg}{TFG}{Trabajo de Fin de Grado}
+
+% -----------------------------------------------------------------------------
+% GLOSARIO DE TÉRMINOS
+% Definiciones propias y concisas de los conceptos empleados en la memoria.
+% Cada entrada incluye 'sort' en ASCII para evitar errores de makeindex.
+% -----------------------------------------------------------------------------
+
+% --- Conceptos de aprendizaje federado ---
+\newglossaryentry{aprendizaje-federado}{
+  name={aprendizaje federado},
+  sort={aprendizaje federado},
+  description={Paradigma de aprendizaje automático que entrena un modelo de forma colaborativa entre varios clientes sin centralizar sus datos; en lugar de los datos, solo se intercambian las actualizaciones del modelo}
+}
+
+\newglossaryentry{fl-horizontal}{
+  name={aprendizaje federado horizontal},
+  sort={aprendizaje federado horizontal},
+  description={Variante en la que los clientes comparten el mismo espacio de características pero poseen ejemplos distintos. Es el escenario empleado en este trabajo}
+}
+
+\newglossaryentry{fl-vertical}{
+  name={aprendizaje federado vertical},
+  sort={aprendizaje federado vertical},
+  description={Variante en la que los clientes comparten parte de los individuos o entidades pero describen atributos distintos, lo que exige alinear registros}
+}
+
+\newglossaryentry{cross-silo}{
+  name={cross-silo},
+  sort={cross-silo},
+  description={Escenario federado con pocos clientes estables y con capacidad de cómputo elevada (por ejemplo hospitales o bancos), con participación habitualmente completa}
+}
+
+\newglossaryentry{cross-device}{
+  name={cross-device},
+  sort={cross-device},
+  description={Escenario federado con un número muy elevado de dispositivos de usuario final, con disponibilidad intermitente, recursos limitados y conexiones inestables}
+}
+
+\newglossaryentry{ronda-federada}{
+  name={ronda federada},
+  sort={ronda federada},
+  description={Iteración completa del ciclo de distribución del modelo global, entrenamiento local en los clientes, envío de los modelos locales y agregación en el servidor}
+}
+
+\newglossaryentry{epoca-local}{
+  name={época local},
+  sort={epoca local},
+  description={Número de veces que cada cliente recorre su conjunto de datos local durante el entrenamiento de una ronda}
+}
+
+\newglossaryentry{tamano-lote}{
+  name={tamaño de lote},
+  sort={tamano de lote},
+  description={Número de ejemplos que se procesan antes de cada actualización de los parámetros del modelo (\textit{batch size})}
+}
+
+\newglossaryentry{tasa-aprendizaje}{
+  name={tasa de aprendizaje},
+  sort={tasa de aprendizaje},
+  description={Hiperparámetro que regula la magnitud de cada paso de actualización de los parámetros del modelo (\textit{learning rate})}
+}
+
+\newglossaryentry{estrategia-agregacion}{
+  name={estrategia de agregación},
+  sort={estrategia de agregacion},
+  description={Procedimiento del servidor para combinar los modelos locales recibidos y obtener una nueva versión del modelo global}
+}
+
+\newglossaryentry{datos-no-iid}{
+  name={datos no IID},
+  sort={datos no IID},
+  description={Datos no independientes ni idénticamente distribuidos; situación en la que la distribución de los datos difiere de un cliente a otro, lo que dificulta la convergencia del modelo global}
+}
+
+% --- Algoritmos federados ---
+\newglossaryentry{alg-fedavg}{
+  name={FedAvg (algoritmo)},
+  sort={FedAvg},
+  description={Algoritmo de referencia del aprendizaje federado que agrega los modelos locales mediante un promedio ponderado por el número de ejemplos de cada cliente}
+}
+
+\newglossaryentry{alg-fedprox}{
+  name={FedProx (algoritmo)},
+  sort={FedProx},
+  description={Variante de FedAvg que añade un término proximal al entrenamiento local para penalizar la desviación de los pesos locales respecto al modelo global}
+}
+
+\newglossaryentry{alg-fedopt}{
+  name={FedOpt (familia)},
+  sort={FedOpt},
+  description={Familia de optimización federada adaptativa que sustituye el promedio del servidor por un optimizador con momento y tasa de aprendizaje propios}
+}
+
+\newglossaryentry{alg-fedadam}{
+  name={FedAdam},
+  sort={FedAdam},
+  description={Variante de FedOpt que emplea el optimizador Adam en el lado del servidor}
+}
+
+\newglossaryentry{alg-fedadagrad}{
+  name={FedAdagrad},
+  sort={FedAdagrad},
+  description={Variante de FedOpt que emplea el optimizador Adagrad en el lado del servidor}
+}
+
+\newglossaryentry{alg-scaffold}{
+  name={SCAFFOLD},
+  sort={SCAFFOLD},
+  description={Algoritmo federado que corrige la deriva entre clientes mediante variables de control para mejorar la convergencia con datos heterogéneos}
+}
+
+% --- Modelos, datos y entrenamiento ---
+\newglossaryentry{cifar10}{
+  name={CIFAR-10},
+  sort={CIFAR-10},
+  description={Conjunto de 60\,000 imágenes en color de 32 por 32 píxeles distribuidas en diez clases, empleado en este trabajo como banco de pruebas de clasificación}
+}
+
+\newglossaryentry{resnet18}{
+  name={ResNet-18},
+  sort={ResNet-18},
+  description={Red neuronal residual de 18 capas; en este trabajo se adapta a las dimensiones de CIFAR-10 sustituyendo la primera convolución y eliminando el \textit{maxpool} inicial}
+}
+
+\newglossaryentry{funcion-perdida}{
+  name={función de pérdida},
+  sort={funcion de perdida},
+  description={Función que cuantifica el error del modelo comparando su predicción con la salida esperada; en este trabajo se emplea la entropía cruzada}
+}
+
+% --- Seguridad y privacidad ---
+\newglossaryentry{privacidad-diferencial}{
+  name={privacidad diferencial},
+  sort={privacidad diferencial},
+  description={Técnica que añade ruido controlado a los datos o a las actualizaciones del modelo para limitar la información que puede inferirse sobre un individuo concreto}
+}
+
+\newglossaryentry{agregacion-segura}{
+  name={agregación segura},
+  sort={agregacion segura},
+  description={Protocolo criptográfico que permite combinar las actualizaciones de los clientes sin que el servidor observe cada una por separado}
+}
+
+\newglossaryentry{cifrado-homomorfico}{
+  name={cifrado homomórfico},
+  sort={cifrado homomorfico},
+  description={Esquema de cifrado que permite operar sobre datos cifrados sin necesidad de descifrarlos previamente}
+}
+
+% --- Infraestructura y ejecución ---
+\newglossaryentry{framework}{
+  name={framework},
+  sort={framework},
+  description={Conjunto de componentes reutilizables que proporciona la infraestructura para construir y ejecutar un tipo de sistema, en este caso de aprendizaje federado}
+}
+
+\newglossaryentry{backend}{
+  name={backend},
+  sort={backend},
+  description={Motor de ejecución subyacente de un framework; en FedML determina si el entrenamiento es secuencial (\textit{sp}) o concurrente (MPI)}
+}
+
+\newglossaryentry{ray}{
+  name={Ray},
+  sort={Ray},
+  description={Framework de cómputo distribuido sobre el que Flower ejecuta su motor de simulación de clientes}
+}
+
+\newglossaryentry{modo-secuencial}{
+  name={modo secuencial},
+  sort={modo secuencial},
+  description={Modo de ejecución en el que se mantiene una sola tarea de entrenamiento activa cada vez, de manera que los clientes de una ronda se procesan uno tras otro}
+}
+
+\newglossaryentry{modo-concurrente}{
+  name={modo concurrente},
+  sort={modo concurrente},
+  description={Modo de ejecución en el que varios clientes o procesos permanecen activos simultáneamente, lo que permite observar el paralelismo y su impacto en los recursos}
+}
+
+% --- Ejes de evaluación ---
+\newglossaryentry{usabilidad}{
+  name={usabilidad},
+  sort={usabilidad},
+  description={Eje de evaluación que valora la experiencia de desarrollo de cada framework: instalación, configuración, claridad de los registros y facilidad de depuración}
+}
+
+\newglossaryentry{flexibilidad}{
+  name={flexibilidad},
+  sort={flexibilidad},
+  description={Propiedad arquitectónica que describe hasta qué punto un framework permite adaptarse a escenarios distintos de los previstos por defecto, modificando, sustituyendo o ampliando su comportamiento}
+}

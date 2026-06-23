@@ -1,0 +1,191 @@
+\chapter{Diseño experimental e implementación}\label{chap:experimentos}
+
+% Barrera de flotantes: evita que las tablas migren de sección. Si el paquete
+% placeins esta cargado se usa su \FloatBarrier; si no, se recurre a \clearpage.
+\providecommand{\FloatBarrier}{\clearpage}
+
+Este capítulo concreta la batería de experimentos ejecutada sobre los tres \textit{frameworks}
+con la metodología descrita en el Capítulo~\ref{chap:metodologia}. Se define primero el escenario
+de entrenamiento común a las tres herramientas —conjunto de datos, modelo y configuración de
+aprendizaje—, que se mantiene constante para que las diferencias observadas se atribuyan al
+\textit{framework} y no a otros factores. A continuación se presentan la matriz de experimentos y
+los dos modos de ejecución, secuencial y concurrente, en los que se ejecuta cada configuración.
+
+\section{Diseño del experimento común}\label{sec:diseno-comun}
+
+La comparación parte de un principio básico de control experimental: todo aquello que no es el
+propio \textit{framework} debe permanecer constante. Por ese motivo, el conjunto de datos, el
+modelo, el algoritmo de aprendizaje federado, los hiperparámetros y el
+hardware son idénticos en las tres herramientas, y el particionamiento de los datos es
+equivalente entre ellas: misma naturaleza IID y mismos tamaños por cliente, aunque cada
+\textit{framework} lo materialice con su propia tubería de carga de datos
+(Sección~\ref{sec:datos}). La única variable que cambia entre ejecuciones
+es la herramienta evaluada y, dentro de cada una, el modo de ejecución descrito en la
+Sección~\ref{sec:modos-ejecucion}.
+
+La implementación del experimento en cada \textit{framework} se apoyó en su documentación
+oficial y en los proyectos de ejemplo que proporciona cada herramienta, tomados
+como punto de partida y adaptados al escenario común descrito en este capítulo.
+En Flower se siguieron su guía y ejemplos oficiales \parencite{beutel2020flower}; en
+NVIDIA FLARE, la documentación del SDK y sus tutoriales \parencite{roth2022nvflare}; y
+en FedML, la documentación de la plataforma y sus implementaciones de referencia
+\parencite{he2020fedml}.
+
+La implementación se reparte de forma deliberada en dos planos. Este capítulo recoge el
+plano común y operativo —el escenario idéntico para las tres herramientas y las órdenes
+concretas con que se ejecuta cada modo (Sección~\ref{sec:modos-ejecucion})—, mientras que
+las adaptaciones de código propias de cada \textit{framework} —modelo, carga de datos,
+bucle de entrenamiento, estrategia de agregación y automatización de la ejecución— se
+documentan junto a la evaluación de flexibilidad de cada herramienta, en las
+Secciones~\ref{sec:flex-flower}, \ref{sec:flex-nvflare} y~\ref{sec:flex-fedml}. Se ha
+optado por esta organización para mantener cada implementación al lado del análisis que la
+interpreta y evitar duplicar el código entre capítulos.
+
+\subsection{Conjunto de datos y particionamiento}\label{sec:datos}
+
+Como banco de pruebas se emplea CIFAR-10, un conjunto de 60\,000 imágenes en color de
+$32\times32$ píxeles distribuidas en diez clases. Se respeta la partición oficial de
+50\,000 imágenes de entrenamiento y 10\,000 de prueba. Las 50\,000 imágenes de entrenamiento se
+dividen, a su vez, en 40\,000 para el entrenamiento federado y 10\,000 para validación local en
+cada cliente, mientras que las 10\,000 imágenes de prueba se reservan para la evaluación
+centralizada del modelo global, ajena al entrenamiento.
+
+El reparto entre clientes es independiente e idénticamente distribuido (IID). Para ello se
+barajan los índices con una semilla fija y se asignan en bloques de igual tamaño a cada cliente,
+de modo que todos reciben una muestra estadísticamente equivalente del conjunto global. Conviene
+matizar que cada \textit{framework} construye ese reparto con su propia tubería de carga de
+datos —Flower mediante el particionador IID de \texttt{flwr-datasets} y NVIDIA FLARE y FedML
+mediante un barajado global con \texttt{torchvision}—, por lo que las particiones no contienen
+necesariamente las mismas imágenes en cada cliente, pero sí comparten la naturaleza IID y los
+mismos tamaños por cliente; las diferencias observadas no son, por tanto, atribuibles al reparto.
+Se ha
+optado por una distribución IID de forma deliberada: el objetivo es aislar el comportamiento del
+\textit{framework} del efecto añadido de la heterogeneidad de datos, que introduciría una
+fuente de variación difícil de separar. El estudio de escenarios no~IID queda planteado como
+ampliación futura y se recoge en la Sección~\ref{sec:alcance-limitaciones}.
+
+Sobre las imágenes se aplican las transformaciones habituales para CIFAR-10. En entrenamiento se
+usa aumento de datos mediante recorte aleatorio con relleno de cuatro píxeles y volteo
+horizontal aleatorio; en validación y prueba no se aplica aumento. En todos los casos las
+imágenes se normalizan con las medias y desviaciones típicas por canal propias del conjunto.
+
+\subsection{Modelo}\label{sec:modelo}
+
+El modelo común es una red residual ResNet-18 adaptada a las dimensiones de CIFAR-10. La
+arquitectura original está pensada para imágenes de $224\times224$ píxeles, por lo que se
+sustituye la primera convolución por una de núcleo $3\times3$ con paso 1 y se elimina la capa de
+\textit{maxpooling} inicial, de manera que la red no reduce en exceso la resolución de unas
+imágenes ya pequeñas. La capa totalmente conectada final se ajusta a diez salidas, una por
+clase. Se eligió ResNet-18 por tratarse de una arquitectura estándar, suficientemente expresiva
+para esta tarea y con un coste de cómputo asumible en una GPU de 6\,GB. El modelo se implementa
+de forma idéntica en los tres \textit{frameworks}.
+
+\subsection{Algoritmo y configuración de entrenamiento}\label{sec:config-entrenamiento}
+
+El algoritmo de aprendizaje federado es Federated Averaging (FedAvg), descrito en el capítulo de
+fundamentos teóricos. En cada ronda, los clientes entrenan el modelo global con sus datos
+locales y el servidor promedia los modelos locales resultantes, ponderándolos por el número de
+ejemplos de cada cliente. El entrenamiento local emplea descenso de gradiente estocástico (SGD) con tasa de
+aprendizaje 0{,}02, momento 0{,}9 y \textit{weight decay} de $5\times10^{-4}$, con un tamaño de
+lote de 32 y entropía cruzada como función de pérdida. Estos valores son comunes a las tres
+herramientas.
+
+Los hiperparámetros no se determinaron mediante una búsqueda exhaustiva, sino que se fijaron a
+priori para disponer de una configuración común, controlada y comparable entre los tres
+\textit{frameworks}. El objetivo del trabajo no es maximizar el rendimiento del modelo, sino
+comparar Flower, NVIDIA FLARE y FedML bajo idénticas condiciones; por ese motivo se escogieron
+valores moderados y estables, atendiendo a configuraciones habituales de FedAvg, al hardware
+disponible y a una serie de pruebas preliminares que confirmaron que los experimentos se
+ejecutaban correctamente. Esta decisión se asume como una limitación del estudio
+(Sección~\ref{sec:alcance-limitaciones}): los resultados corresponden a esta configuración
+concreta y no a una optimización individual de cada herramienta.
+
+\section{Matriz de experimentos}\label{sec:matriz-experimentos}
+
+A partir del escenario común se define una matriz de experimentos que varía de forma controlada
+el número de clientes, el número de rondas, las épocas locales y la fracción de clientes que
+participa en cada ronda. La Tabla~\ref{tab:matriz-experimentos} resume las configuraciones. El
+experimento e0 actúa como referencia; e1 constituye la configuración principal del estudio, con
+más épocas locales por ronda; e2 explora la escalabilidad variando el número de clientes; y e3
+analiza la participación parcial, en la que solo una fracción de los clientes interviene en cada
+ronda.
+
+\begin{table}[htbp]
+  \centering
+  \small
+  \caption{Matriz de experimentos del estudio. Cada configuración se ejecuta en los tres
+  \textit{frameworks} y en los dos modos de ejecución.}
+  \label{tab:matriz-experimentos}
+  \begin{tabular}{llccccc}
+    \toprule
+    ID & Propósito & Clientes & Clientes/ronda & Rondas & Épocas locales \\
+    \midrule
+    e0 & Línea base de referencia      & 10 & 10 & 30 & 2  \\
+    e1 & Configuración principal       & 5  & 5  & 20 & 10 \\
+    e2-c4 & Escalabilidad (4 clientes)    & 4  & 4  & 10 & 2  \\
+    e2-c5 & Escalabilidad (5 clientes)    & 5  & 5  & 10 & 2  \\
+    e2-c8 & Escalabilidad (8 clientes)    & 8  & 8  & 10 & 2  \\
+    e3 & Participación parcial         & 8  & 4  & 20 & 10 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El experimento e3 exige una aclaración terminológica. Mide la \textit{participación parcial}
+de clientes, es decir, el efecto de que solo una fracción del total intervenga en cada ronda. No
+debe confundirse con la \textit{flexibilidad} de cada herramienta, entendida como propiedad
+arquitectónica, que se analiza de forma cualitativa en la Sección~\ref{sec:criterios-flexibilidad}.
+A lo largo de la memoria, el término flexibilidad se reserva para ese eje cualitativo.
+
+\section{Modos de ejecución: secuencial y concurrente}\label{sec:modos-ejecucion}
+
+Cada configuración de la matriz se ejecuta en dos modos distintos. En el modo \textit{secuencial}
+se mantiene una sola tarea de entrenamiento activa cada vez, de manera que los clientes de una
+ronda se procesan uno tras otro. En el modo \textit{concurrente} se intenta mantener varios
+clientes o procesos activos a la vez, con el fin de observar cómo gestiona cada \textit{framework}
+el paralelismo y qué impacto tiene en el consumo de recursos y en la estabilidad de la ejecución.
+
+La forma de activar cada modo depende de la arquitectura de la herramienta. En NVIDIA FLARE, el
+simulador admite un parámetro que fija el número de hilos de entrenamiento activos: con un único
+hilo la ejecución es secuencial y, al aumentarlo hasta el número de clientes por ronda, se vuelve
+concurrente. El Código~\ref{cod:nvflare-modo} muestra ambas invocaciones.
+
+\begin{bashcodeNN}[title={Modos de ejecución en NVIDIA FLARE}, label={cod:nvflare-modo}, list entry={\protect\numberline{\thelisting}Modos de ejecución en NVIDIA FLARE}]
+# Modo secuencial: un único hilo de entrenamiento activo
+nvflare simulator -w workspace -n 5 -t 1 --gpu 0 job_dir
+
+# Modo concurrente: tantos hilos como clientes por ronda
+nvflare simulator -w workspace -n 5 -t 5 --gpu 0 job_dir
+\end{bashcodeNN}
+
+En FedML, el modo secuencial corresponde al backend de proceso único (\texttt{sp}), que entrena a
+los clientes de forma sucesiva, mientras que el modo concurrente se apoya en el backend MPI,
+lanzado con \texttt{mpirun}, que ejecuta varios procesos de cliente en paralelo
+(Código~\ref{cod:fedml-modo}).
+
+\begin{bashcodeNN}[title={Modos de ejecución en FedML}, label={cod:fedml-modo}, list entry={\protect\numberline{\thelisting}Modos de ejecución en FedML}]
+# Modo secuencial: backend de proceso único
+python main.py --cf config_sp.yaml
+
+# Modo concurrente: backend MPI con varios procesos de cliente
+mpirun --oversubscribe -np 6 python main.py --cf config_mpi.yaml
+\end{bashcodeNN}
+
+En Flower, la simulación se gestiona internamente mediante Ray y la ejecución se lanza con
+\texttt{flwr run}, indicando la configuración de la federación. A diferencia de NVIDIA FLARE y
+FedML, la concurrencia no se controla con un parámetro de hilos o de \textit{backend}, sino con
+los recursos de GPU que se reservan para cada cliente mediante
+\texttt{client-resources-num-gpus}. Si cada cliente reserva la GPU completa ($1{,}0$), solo puede
+entrenar un cliente a la vez y la ejecución es secuencial; si reserva una fracción ($0{,}5$),
+varios clientes caben simultáneamente en la GPU y la ejecución se vuelve concurrente. El número
+total de clientes simulados se fija con \texttt{num-supernodes}. El Código~\ref{cod:flower-modo}
+muestra ambas invocaciones.
+
+\begin{bashcodeNN}[title={Modos de ejecución en Flower}, label={cod:flower-modo}, list entry={\protect\numberline{\thelisting}Modos de ejecución en Flower}]
+# Modo secuencial: cada cliente reserva la GPU completa,
+# por lo que solo se entrena un cliente a la vez
+flwr run . --federation-config="num-supernodes=5 client-resources-num-gpus=1.0"
+
+# Modo concurrente: cada cliente reserva una fraccion de la GPU,
+# permitiendo varios clientes simultaneos
+flwr run . --federation-config="num-supernodes=5 client-resources-num-gpus=0.5"
+\end{bashcodeNN}

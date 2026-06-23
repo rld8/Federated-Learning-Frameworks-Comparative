@@ -1,0 +1,611 @@
+%% =============================================================================
+%% CAPÍTULO: DESARROLLO - DEMOSTRACIÓN DE ESTILOS DE CÓDIGO
+%% =============================================================================
+\chapter{Desarrollo: Estilos de Código}
+\label{cap:desarrollo}
+
+Este capítulo demuestra los estilos de cajas de código disponibles en esta plantilla,
+basados en el diseño de Visual Studio Code. Cada \gls{entorno} genera una caja estilizada
+con el icono del lenguaje, números de línea opcionales y resaltado de sintaxis mediante
+el \gls{compilador} de Pygments.
+
+%% =============================================================================
+\section{Estilo VS Code Light}
+\label{sec:vscode-light}
+
+El estilo VS Code Light imita la apariencia del editor Visual Studio Code en su tema claro.
+Todos los entornos aceptan el contenido directamente entre \texttt{\textbackslash begin} y
+\texttt{\textbackslash end}.
+
+\subsection{Python}
+
+Entorno para código Python con icono \faIcon{python} y números de línea.
+
+\begin{codigosimple}{latex}{Sintaxis: Python}
+\begin{pythoncode}
+  ... código Python ...
+\end{pythoncode}
+\end{codigosimple}
+
+\begin{pythoncode}
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+for i in range(10):
+    print(f"F({i}) = {fibonacci(i)}")
+\end{pythoncode}
+
+\subsection{Sin numeración de líneas}
+
+Todos los entornos tienen variante \texttt{NN} (No Numbers) que elimina la numeración.
+Útil para fragmentos cortos o pseudocódigo.
+
+\begin{codigosimple}{latex}{Sintaxis: Sin numeración de líneas}
+\begin{pythoncodeNN}
+  ... código sin números ...
+\end{pythoncodeNN}
+\end{codigosimple}
+
+\begin{pythoncodeNN}
+mensaje = "Hola, mundo"
+print(mensaje)
+\end{pythoncodeNN}
+
+\subsection{JavaScript}
+
+Entorno para JavaScript con icono \faIcon{js-square}.
+
+\begin{codigosimple}{latex}{Sintaxis: JavaScript}
+\begin{jscode}
+  ... código JavaScript ...
+\end{jscode}
+\end{codigosimple}
+
+\begin{jscode}
+function validateEmail(email) {
+    const regex = /^[a-z]+@[a-z]+\.[a-z]+$/;
+    return regex.test(email);
+}
+
+async function fetchData(url) {
+    const response = await fetch(url);
+    return response.json();
+}
+\end{jscode}
+
+\subsection{Java}
+
+Entorno para Java con icono \faIcon{java}.
+
+\begin{codigosimple}{latex}{Sintaxis: Java}
+\begin{javacode}
+  ... código Java ...
+\end{javacode}
+\end{codigosimple}
+
+\begin{javacode}
+public class HelloWorld {
+    public static void main(String[] args) {
+        System.out.println("Hola desde Java!");
+    }
+}
+\end{javacode}
+
+%% =============================================================================
+\section{Estilo VS Code Dark}
+\label{sec:vscode-dark}
+
+El tema oscuro de VS Code, ideal para documentación técnica o presentaciones.
+Todos los entornos Light tienen su versión Dark añadiendo el sufijo \texttt{Dark}.
+
+\subsection{Python Dark}
+
+Versión oscura del entorno Python. Combina con fondos oscuros o diapositivas.
+
+\begin{codigosimple}{latex}{Sintaxis: Python Dark}
+\begin{pythoncodeDark}
+  ... código Python ...
+\end{pythoncodeDark}
+\end{codigosimple}
+
+\begin{pythoncodeDark}
+import numpy as np
+
+def matrix_multiply(A, B):
+    return np.dot(A, B)
+
+A = np.array([[1, 2], [3, 4]])
+B = np.array([[5, 6], [7, 8]])
+result = matrix_multiply(A, B)
+\end{pythoncodeDark}
+
+\subsection{JavaScript Dark}
+
+Versión oscura del entorno JavaScript.
+
+\begin{codigosimple}{latex}{Sintaxis: JavaScript Dark}
+\begin{jscodeDark}
+  ... código JavaScript ...
+\end{jscodeDark}
+\end{codigosimple}
+
+\begin{jscodeDark}
+const express = require('express');
+const app = express();
+
+app.get('/api/users', async (req, res) => {
+    const users = await User.find();
+    res.json(users);
+});
+
+app.listen(3000);
+\end{jscodeDark}
+
+%% =============================================================================
+\section{Lenguajes Web}
+\label{sec:web}
+
+Entornos especializados para desarrollo web frontend.
+
+\subsection{HTML}
+
+Entorno para HTML con icono \faIcon{html5}.
+
+\begin{codigosimple}{latex}{Sintaxis: HTML}
+\begin{htmlcode}
+  ... código HTML ...
+\end{htmlcode}
+\end{codigosimple}
+
+\begin{htmlcode}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mi Aplicación</title>
+</head>
+<body>
+    <h1>Bienvenido</h1>
+</body>
+</html>
+\end{htmlcode}
+
+\subsection{CSS}
+
+Entorno para CSS con icono \faIcon{css3-alt}.
+
+\begin{codigosimple}{latex}{Sintaxis: CSS}
+\begin{csscode}
+  ... código CSS ...
+\end{csscode}
+\end{codigosimple}
+
+\begin{csscode}
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+\end{csscode}
+
+%% =============================================================================
+\section{Lenguajes de Datos}
+\label{sec:datos}
+
+\subsection{SQL}
+
+Entorno para consultas SQL con icono \faIcon{database}.
+
+\begin{codigosimple}{latex}{Sintaxis: SQL}
+\begin{sqlcode}
+  ... consulta SQL ...
+\end{sqlcode}
+\end{codigosimple}
+
+\begin{sqlcode}
+SELECT
+    usuarios.nombre,
+    COUNT(pedidos.id) as total_pedidos
+FROM usuarios
+LEFT JOIN pedidos ON usuarios.id = pedidos.usuario_id
+GROUP BY usuarios.id
+ORDER BY total_pedidos DESC
+LIMIT 10;
+\end{sqlcode}
+
+%% =============================================================================
+\section{Lenguajes de Sistemas}
+\label{sec:sistemas}
+
+Entornos para lenguajes de sistemas y bajo nivel.
+
+\subsection{C++}
+
+Entorno para C++ con icono \faIcon{copyright}.
+
+\begin{codigosimple}{latex}{Sintaxis: C++}
+\begin{cppcode}
+  ... código C++ ...
+\end{cppcode}
+\end{codigosimple}
+
+\begin{cppcode}
+// Cabeceras necesarias: <iostream>, <vector> y <algorithm>
+
+int main() {
+    std::vector<int> nums = {5, 2, 8, 1, 9};
+    std::sort(nums.begin(), nums.end());
+    for (const auto& n : nums) {
+        std::cout << n << " ";
+    }
+    return 0;
+}
+\end{cppcode}
+
+\subsection{Rust}
+
+Entorno para Rust con icono \faIcon{rust}.
+
+\begin{codigosimple}{latex}{Sintaxis: Rust}
+\begin{rustcode}
+  ... código Rust ...
+\end{rustcode}
+\end{codigosimple}
+
+\begin{rustcode}
+fn main() {
+    let mensaje = "Hola desde Rust";
+    println!("{}", mensaje);
+
+    let numeros = vec![1, 2, 3, 4, 5];
+    for n in numeros {
+        println!("{}", n);
+    }
+}
+\end{rustcode}
+
+\subsection{Go}
+
+Entorno para Go con icono \faIcon{google}.
+
+\begin{codigosimple}{latex}{Sintaxis: Go}
+\begin{gocode}
+  ... código Go ...
+\end{gocode}
+\end{codigosimple}
+
+\begin{gocode}
+package main
+
+import "fmt"
+
+func main() {
+    fmt.Println("Hola desde Go")
+
+    nums := []int{1, 2, 3, 4, 5}
+    for _, n := range nums {
+        fmt.Println(n)
+    }
+}
+\end{gocode}
+
+%% =============================================================================
+\section{Otros Lenguajes}
+\label{sec:otros}
+
+Entornos para otros lenguajes de programación populares.
+
+\subsection{PHP}
+
+Entorno para PHP con icono \faIcon{php}.
+
+\begin{codigosimple}{latex}{Sintaxis: PHP}
+\begin{phpcode}
+  ... código PHP ...
+\end{phpcode}
+\end{codigosimple}
+
+\begin{phpcode}
+<?php
+class Usuario {
+    private $nombre;
+
+    public function __construct($nombre) {
+        $this->nombre = $nombre;
+    }
+
+    public function saludar() {
+        return "Hola, " . $this->nombre . "!";
+    }
+}
+
+$usuario = new Usuario("Juan");
+echo $usuario->saludar();
+?>
+\end{phpcode}
+
+\subsection{Ruby}
+
+Entorno para Ruby con icono \faIcon{gem}.
+
+\begin{codigosimple}{latex}{Sintaxis: Ruby}
+\begin{rubycode}
+  ... código Ruby ...
+\end{rubycode}
+\end{codigosimple}
+
+\begin{rubycode}
+class Persona
+  attr_accessor :nombre, :edad
+
+  def initialize(nombre, edad)
+    @nombre = nombre
+    @edad = edad
+  end
+
+  def saludar
+    puts "Hola, soy " + @nombre
+  end
+end
+
+persona = Persona.new("Maria", 25)
+persona.saludar
+\end{rubycode}
+
+%% =============================================================================
+\section{DevOps y Configuración}
+\label{sec:devops}
+
+Entornos para archivos de configuración y DevOps.
+
+\subsection{Docker}
+
+Entorno para Dockerfiles con icono \faIcon{docker}.
+
+\begin{codigosimple}{latex}{Sintaxis: Docker}
+\begin{dockercode}
+  ... Dockerfile ...
+\end{dockercode}
+\end{codigosimple}
+
+\begin{dockercode}
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --only=production
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
+\end{dockercode}
+
+%% =============================================================================
+\section{Entorno Genérico}
+\label{sec:generico}
+
+El entorno \texttt{codigo\{lenguaje\}} permite usar cualquier lenguaje soportado
+por Pygments. Útil para lenguajes menos comunes que no tienen entorno predefinido.
+
+\begin{codigosimple}{latex}{Sintaxis: Entorno Genérico}
+\begin{codigo}{lenguaje}
+  ... código ...
+\end{codigo}
+\end{codigosimple}
+
+Ejemplo con Swift:
+
+\begin{codigo}{swift}
+import Foundation
+
+struct Persona {
+    let nombre: String
+    let edad: Int
+
+    func saludar() -> String {
+        return "Hola, soy " + nombre
+    }
+}
+
+let persona = Persona(nombre: "Carlos", edad: 30)
+print(persona.saludar())
+\end{codigo}
+
+\subsection{Versión Dark del Genérico}
+
+El entorno genérico también tiene versión oscura.
+
+\begin{codigosimple}{latex}{Sintaxis: Versión Dark del Genérico}
+\begin{codigoDark}{lenguaje}
+  ... código ...
+\end{codigoDark}
+\end{codigosimple}
+
+Ejemplo con Kotlin:
+
+\begin{codigoDark}{kotlin}
+data class Usuario(val nombre: String, val email: String)
+
+fun main() {
+    val usuarios = listOf(
+        Usuario("Ana", "ana@mail.com"),
+        Usuario("Luis", "luis@mail.com")
+    )
+
+    usuarios.forEach { println(it) }
+}
+\end{codigoDark}
+
+%% =============================================================================
+\section{Estilo Simple con Título}
+\label{sec:codigosimple}
+
+El entorno \texttt{codigosimple} proporciona un estilo minimalista con título personalizado.
+Es ideal cuando se necesita un diseño más limpio sin los iconos del estilo VS Code.
+
+\subsection{Código Simple con Numeración}
+
+El entorno acepta tres argumentos: opciones extra (opcional), lenguaje y título.
+
+\begin{bashcode}[title={Sintaxis}]
+\begin{codigosimple}{lenguaje}{Título del código}
+  ... código ...
+\end{codigosimple}
+\end{bashcode}
+
+\begin{codigosimple}{python}{Ejemplo de función}
+def saludar(nombre):
+    return f"Hola, {nombre}!"
+
+print(saludar("Mundo"))
+\end{codigosimple}
+
+\subsection{Código Simple sin Numeración}
+
+Variante sin números de línea usando el sufijo \texttt{NN}.
+
+\begin{codigosimple}{latex}{Sintaxis: Código Simple sin Numeración}
+\begin{codigosimpleNN}{lenguaje}{Título}
+  ... código ...
+\end{codigosimpleNN}
+\end{codigosimple}
+
+\begin{codigosimpleNN}{javascript}{Configuración JSON}
+const config = {
+  debug: true,
+  version: "1.0.0"
+};
+\end{codigosimpleNN}
+
+%% =============================================================================
+\section{Resumen de Entornos Disponibles}
+\label{sec:resumen-entornos}
+
+\begin{table}[H]
+\centering
+\caption{Entornos de código con icono --- Lenguajes de programación}
+\label{tab:entornos-programacion}
+\begin{tabular}{llll}
+\toprule
+\textbf{Entorno} & \textbf{Lenguaje} & \textbf{Icono} & \textbf{Dark} \\
+\midrule
+\texttt{pythoncode} & Python & \faIcon{python} & \texttt{pythoncodeDark} \\
+\texttt{jscode} & JavaScript & \faIcon{js-square} & \texttt{jscodeDark} \\
+\texttt{tscode} & TypeScript & \faIcon{js-square} & \texttt{tscodeDark} \\
+\texttt{javacode} & Java & \faIcon{java} & \texttt{javacodeDark} \\
+\texttt{ccode} & C & \faIcon{copyright} & \texttt{ccodeDark} \\
+\texttt{cppcode} & C++ & \faIcon{copyright} & \texttt{cppcodeDark} \\
+\texttt{csharpcode} & C\# & \faIcon{microsoft} & \texttt{csharpcodeDark} \\
+\texttt{kotlincode} & Kotlin & \faIcon{android} & \texttt{kotlincodeDark} \\
+\texttt{swiftcode} & Swift & \faIcon{apple} & \texttt{swiftcodeDark} \\
+\texttt{gocode} & Go & \faIcon{google} & \texttt{gocodeDark} \\
+\texttt{rustcode} & Rust & \faIcon{rust} & \texttt{rustcodeDark} \\
+\texttt{phpcode} & PHP & \faIcon{php} & \texttt{phpcodeDark} \\
+\texttt{rubycode} & Ruby & \faIcon{gem} & \texttt{rubycodeDark} \\
+\texttt{rcode} & R & \faIcon{r-project} & \texttt{rcodeDark} \\
+\texttt{scalacode} & Scala & \faIcon{fire} & \texttt{scalacodeDark} \\
+\texttt{lualangcode} & Lua & \faIcon{moon} & \texttt{lualangcodeDark} \\
+\texttt{perlcode} & Perl & \faIcon{code} & \texttt{perlcodeDark} \\
+\texttt{haskellcode} & Haskell & \faIcon{code} & \texttt{haskellcodeDark} \\
+\texttt{matlabcode} & MATLAB & \faIcon{chart-line} & \texttt{matlabcodeDark} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Entornos de código con icono --- Web, datos y configuración}
+\label{tab:entornos-web}
+\begin{tabular}{llll}
+\toprule
+\textbf{Entorno} & \textbf{Lenguaje} & \textbf{Icono} & \textbf{Dark} \\
+\midrule
+\texttt{htmlcode} & HTML & \faIcon{html5} & \texttt{htmlcodeDark} \\
+\texttt{csscode} & CSS & \faIcon{css3-alt} & \texttt{csscodeDark} \\
+\texttt{sasscode} & SASS/SCSS & \faIcon{sass} & \texttt{sasscodeDark} \\
+\texttt{sqlcode} & SQL & \faIcon{database} & \texttt{sqlcodeDark} \\
+\texttt{jsoncode} & JSON & \faIcon{code} & \texttt{jsoncodeDark} \\
+\texttt{xmlcode} & XML & \faIcon{code} & \texttt{xmlcodeDark} \\
+\texttt{yamlcode} & YAML & \faIcon{file-code} & \texttt{yamlcodeDark} \\
+\texttt{tomlcode} & TOML & \faIcon{file-code} & \texttt{tomlcodeDark} \\
+\texttt{mdcode} & Markdown & \faIcon{markdown} & \texttt{mdcodeDark} \\
+\texttt{latexcode} & \LaTeX & \faIcon{file-alt} & \texttt{latexcodeDark} \\
+\texttt{inicode} & INI/Config & \faIcon{sliders-h} & \texttt{inicodeDark} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Entornos de código con icono --- Shell y DevOps}
+\label{tab:entornos-devops}
+\begin{tabular}{llll}
+\toprule
+\textbf{Entorno} & \textbf{Lenguaje} & \textbf{Icono} & \textbf{Dark} \\
+\midrule
+\texttt{bashcode} & Bash/Shell & \faIcon{terminal} & \texttt{bashcodeDark} \\
+\texttt{pscode} & PowerShell & \faIcon{terminal} & \texttt{pscodeDark} \\
+\texttt{dockercode} & Dockerfile & \faIcon{docker} & \texttt{dockercodeDark} \\
+\texttt{makecode} & Makefile & \faIcon{cogs} & \texttt{makecodeDark} \\
+\texttt{gitcode} & Git & \faIcon{git-alt} & \texttt{gitcodeDark} \\
+\texttt{diffcode} & Diff/Patch & \faIcon{code-branch} & \texttt{diffcodeDark} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Sufijos disponibles para cada entorno}
+\label{tab:sufijos}
+\begin{tabular}{lll}
+\toprule
+\textbf{Sufijo} & \textbf{Descripción} & \textbf{Ejemplo} \\
+\midrule
+(ninguno) & Light con números & \texttt{pythoncode} \\
+\texttt{NN} & Light sin números & \texttt{pythoncodeNN} \\
+\texttt{Dark} & Dark con números & \texttt{pythoncodeDark} \\
+\texttt{DarkNN} & Dark sin números & \texttt{pythoncodeDarkNN} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Entornos genéricos para cualquier lenguaje}
+\label{tab:generico}
+\begin{tabular}{ll}
+\toprule
+\textbf{Entorno} & \textbf{Descripción} \\
+\midrule
+\texttt{codigo\{lang\}} & Light con números \\
+\texttt{codigoNN\{lang\}} & Light sin números \\
+\texttt{codigoDark\{lang\}} & Dark con números \\
+\texttt{codigoDarkNN\{lang\}} & Dark sin números \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Entornos simples con título personalizado}
+\label{tab:codigosimple}
+\begin{tabular}{ll}
+\toprule
+\textbf{Entorno} & \textbf{Descripción} \\
+\midrule
+\texttt{codigosimple\{lang\}\{título\}} & Simple con números \\
+\texttt{codigosimpleNN\{lang\}\{título\}} & Simple sin números \\
+\bottomrule
+\end{tabular}
+\end{table}

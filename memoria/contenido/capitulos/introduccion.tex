@@ -1,0 +1,84 @@
+\chapter{Introducción}\label{chap:introduccion}
+
+El aprendizaje automático se utiliza hoy en muchos ámbitos de la ingeniería
+informática, como la visión por computador, el procesamiento del lenguaje natural, la
+medicina, la industria o la ciberseguridad. Buena parte de estos avances se apoya en el
+aprendizaje profundo \parencite{goodfellow2016deep}, cuyo rendimiento depende de la
+cantidad y la diversidad de los datos con que se entrena el modelo. Esos datos, además,
+no siempre están donde se necesitan: rara vez residen en un único repositorio y, con
+frecuencia, no pueden trasladarse sin restricciones a una infraestructura central.
+
+El enfoque habitual ha sido el entrenamiento centralizado, que reúne en un servidor
+común los datos de las distintas fuentes. En muchos casos reales, en cambio, esos datos
+están repartidos entre dispositivos, usuarios u organizaciones, y centralizarlos es
+difícil o poco conveniente. La privacidad lo limita, transferir grandes volúmenes de
+información tiene un coste elevado y concentrar datos sensibles en un solo punto añade
+riesgo \parencite{li2020federated,kairouz2021advances}. La colaboración entre entidades
+sigue siendo deseable, pero compartir los datos en bruto no siempre es una opción.
+
+El aprendizaje federado (\textit{Federated Learning}, FL) responde a esa necesidad:
+entrena modelos de forma colaborativa sin sacar los datos de los dispositivos o
+entidades donde se generan \parencite{kairouz2021advances}. El modelo se entrena
+localmente en cada cliente y, en lugar de los datos, solo viajan las actualizaciones
+resultantes, que un servidor central combina para formar un modelo global. El algoritmo
+de referencia es \textit{Federated Averaging} (FedAvg), propuesto por
+\textcite{mcmahan2017communication}, que organiza el proceso en rondas sucesivas de
+distribución del modelo, entrenamiento local y agregación.
+
+Implementar un sistema federado, sin embargo, exige bastante más que entrenar una red
+neuronal. Hay que gestionar la comunicación entre servidor y clientes, definir
+estrategias de agregación, controlar las rondas, registrar métricas y dejar los
+experimentos en condiciones de reproducirse \parencite{bonawitz2019towards}. Para no
+rehacer toda esa infraestructura cada vez, han aparecido \textit{frameworks}
+especializados que ofrecen componentes reutilizables con los que construir y evaluar
+este tipo de sistemas \parencite{bonawitz2019towards,caldas2018leaf}. El problema es que
+hay varios y no siempre está claro cuál conviene para un caso concreto, porque cada uno
+toma decisiones de diseño distintas y puede comportarse de otra manera ante la misma
+carga de trabajo.
+
+Ahí se sitúa este Trabajo de Fin de Grado. Se propone comparar varios \textit{frameworks}
+de aprendizaje federado de forma experimental: implementar en todos ellos un mismo
+escenario, en condiciones equivalentes, y medir tanto el aprendizaje del modelo
+(precisión y pérdida) como el coste en recursos (tiempo de ejecución, memoria, uso de
+GPU, potencia y energía estimada), la reproducibilidad y la facilidad de uso. No se
+busca decidir qué herramienta es mejor en términos absolutos, sino ofrecer una
+comparación razonada y reproducible que aclare sus diferencias prácticas y sirva de
+orientación en proyectos parecidos.
+
+\section{Contextualización del problema}\label{sec:contextualizacion}
+
+Durante mucho tiempo, entrenar modelos de aprendizaje automático ha dependido de tener
+los datos centralizados. Cuando todos pertenecen a una misma organización y pueden
+almacenarse y procesarse sin restricciones, este enfoque funciona bien y simplifica el
+control del preprocesamiento y la evaluación del modelo. En muchos sistemas actuales, en
+cambio, la situación es distinta. Los datos están repartidos entre varias fuentes y
+llevarlos a un mismo lugar suele ser problemático \parencite{kairouz2021advances}.
+
+El motivo no es solo la privacidad. La protección de datos personales o sensibles es una
+de las razones de peso para no centralizar, pero hay además limitaciones técnicas y
+organizativas. El volumen de datos que generan dispositivos y sensores puede hacer poco
+eficiente su transferencia continua; el almacenamiento centralizado encarece la
+infraestructura y convierte al servidor en un punto crítico de seguridad; y, en el plano
+organizativo, dos entidades independientes pueden no estar dispuestas a compartir sus
+bases de datos completas \parencite{li2020federated}.
+
+Frente a este panorama, el aprendizaje federado permite entrenar un modelo de forma
+colaborativa sin reunir todos los datos en un mismo sitio. Lo que se comparte son las
+actualizaciones del modelo, no los datos originales, y eso lo hace apropiado para
+escenarios distribuidos o con datos sensibles. Conviene matizar, eso sí, que no elimina
+del todo los riesgos de privacidad \parencite{kairouz2021advances}. Estos fundamentos se
+desarrollan en el Capítulo~\ref{chap:fundamentos}.
+
+\section{Estructura de la memoria}\label{sec:estructura}
+
+El resto de la memoria se organiza de la siguiente manera. El
+Capítulo~\ref{chap:objetivos} concreta el objetivo general y los objetivos específicos
+que guían el trabajo. El Capítulo~\ref{chap:fundamentos} reúne los fundamentos teóricos
+del aprendizaje automático y del aprendizaje federado, incluido el algoritmo
+\textit{FedAvg}, los tipos de aprendizaje federado y los retos que plantea la
+heterogeneidad de datos y clientes. Después se revisa el estado del arte y se justifica
+la selección de los \textit{frameworks} comparados. El siguiente bloque describe la
+metodología experimental: el diseño del experimento, el control de variables, la
+reproducibilidad y las métricas empleadas, junto con el alcance y las limitaciones del
+trabajo. Por último se presentan los resultados, su análisis comparativo y las
+conclusiones.

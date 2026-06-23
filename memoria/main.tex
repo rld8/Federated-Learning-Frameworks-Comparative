@@ -1,0 +1,130 @@
+% !TeX program = lualatex
+% !TeX encoding = UTF-8
+%% =============================================================================
+%% main.tex
+%% Archivo principal del documento (Root)
+%%
+%% Proyecto: Plantilla TFG/TFM EPS Universidad de Alicante
+%% Autor:    José Manuel Requena Plens
+%% Versión:  2.1.0 (2026/02/05)
+%% =============================================================================
+%
+% Este es el archivo principal del documento.
+% La configuración del trabajo se realiza en 'configuracion.tex'.
+
+% Definir rutas de búsqueda para clase y paquetes (compatibilidad editores)
+\makeatletter
+\def\input@path{{cls/}{sty/}{sty/componentes/}{recursos/}}
+\makeatother
+
+% =============================================================================
+% ACTIVACIÓN DE ESTÁNDARES MODERNOS (PDF/UA-2 & Tagging)
+% =============================================================================
+% Carga la configuración de metadatos y accesibilidad desde la carpeta cls.
+% Esto debe ir ANTES de \documentclass.
+\input{eps-metadata}
+
+% Cargar la clase eps-tfg
+\documentclass{eps-tfg}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CONFIGURACIÓN DEL DOCUMENTO
+% Toda la información personal y del trabajo se define aquí
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{configuracion}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% COMPONENTES ESPECIALIZADOS (OPCIONAL)
+% Carga modular: software, telecom, arquitectura, quimica, geologia, prevencion
+% Usa [all] para cargar todos, o especifica los que necesites
+% Descomenta la línea que corresponda a tu titulación:
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \usepackage{eps-componentes}                    % Solo comunes
+% \usepackage[software]{eps-componentes}          % Informática
+% \usepackage[telecom]{eps-componentes}           % Telecomunicaciones
+% \usepackage[arquitectura]{eps-componentes}      % Arquitectura/Civil
+% \usepackage[quimica]{eps-componentes}           % Química
+% \usepackage[geologia]{eps-componentes}          % Geología
+% \usepackage[prevencion]{eps-componentes}        % Prevención
+\usepackage[all]{eps-componentes}               % Todos (lento)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% BIBLIOGRAFÍA
+% Archivo con las referencias bibliográficas
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\addbibresource{referencias.bib}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ACRÓNIMOS Y GLOSARIO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\makeglossaries
+\input{contenido/anexos/acronimos}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% INICIO DEL DOCUMENTO
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+%% =======================================================================
+%% FRONTMATTER - Páginas preliminares
+%% =======================================================================
+\frontmatter
+
+% Portadas (puedes usar: ambas, solo-color, solo-bn)
+\generarportada[ambas]
+
+% Páginas preliminares (agradecimientos, resumen, etc.)
+\input{contenido/frontmatter/preliminares}
+
+% Índices (comenta los que no necesites)
+\tableofcontents          % Índice general
+\listoffigures             % Índice de figuras
+\listoftables             % Índice de tablas
+\indiceCodigos            % Índice de códigos
+
+%% =======================================================================
+%% MAINMATTER - Contenido principal
+%% =======================================================================
+\mainmatter
+
+% Capítulos del trabajo (ajusta segun tu estructura)
+\input{contenido/capitulos/introduccion}
+\input{contenido/capitulos/objetivos} 
+\input{contenido/capitulos/fundamentos}
+\input{contenido/capitulos/estado-del-arte}
+%\input{contenido/capitulos/objetivos}
+\input{contenido/capitulos/metodologia}
+\input{contenido/capitulos/experimentos}	
+%\input{contenido/capitulos/desarrollo}
+\input{contenido/capitulos/resultados}
+%\input{contenido/capitulos/usabilidad}
+%\input{contenido/capitulos/flexibilidad}
+\input{contenido/capitulos/conclusiones}
+
+%% =======================================================================
+%% BACKMATTER - Material final
+%% =======================================================================
+
+% Bibliografía
+\printbibliography[heading=bibintoc,title={Bibliografía}]
+
+% Lista de acrónimos
+\printglossary[
+  style=modsuper,
+  type=\acronymtype,
+  title={Lista de Acrónimos y Abreviaturas}
+]
+
+% Glosario de términos
+\printglossary[
+  style=listgroup,
+  type=main,
+  title={Glosario de Términos}
+]
+\glsaddallunused
+
+% Anexos (ajusta según tus necesidades)
+\appendix
+%\input{contenido/anexos/anexo-tecnicas-avanzadas}
+
+\end{document}

@@ -1,0 +1,217 @@
+\chapter{Conclusiones}
+\label{chap:conclusiones}
+
+Este capítulo cierra el trabajo recapitulando lo realizado, comprobando en qué medida
+se han alcanzado los objetivos planteados y sintetizando las conclusiones que se
+desprenden de la comparación experimental. A diferencia del capítulo de resultados,
+que presenta y discute las cifras en detalle, aquí se adopta una lectura de conjunto:
+qué enseña el estudio sobre la elección de un \textit{framework} de aprendizaje federado, qué
+aporta respecto al estado del arte, con qué limitaciones debe interpretarse y qué
+líneas quedan abiertas. No se introducen datos ni resultados nuevos; las conclusiones
+se apoyan en la evidencia ya expuesta en los capítulos anteriores.
+
+\section{Consecución de los objetivos}
+\label{sec:consecucion-objetivos}
+
+El objetivo general del trabajo era comparar de forma experimental varios \textit{frameworks}
+de aprendizaje federado ejecutando un mismo escenario de entrenamiento en todos ellos
+y observando tanto el rendimiento del modelo como el consumo de recursos y la
+experiencia de uso. Este objetivo se ha cumplido: Flower, NVIDIA FLARE y FedML se han
+implementado y evaluado sobre un escenario común —clasificación de CIFAR-10 con una
+ResNet-18 adaptada, el algoritmo FedAvg y una configuración cross-silo horizontal— y
+se han contrastado a lo largo de tres ejes complementarios. Los objetivos específicos
+también se han satisfecho de la manera que se resume a continuación.
+
+El primer objetivo específico, relativo al estudio de los fundamentos del aprendizaje
+federado, se abordó en el capítulo de fundamentos teóricos, que delimitó el
+funcionamiento de la ronda federada, el algoritmo FedAvg, los tipos de aprendizaje
+federado y los retos derivados de la heterogeneidad de datos y recursos. El segundo,
+centrado en la necesidad de \textit{frameworks} especializados y en los aspectos que influyen
+en su elección, se cubrió en el estado del arte, donde se revisó el panorama de
+herramientas, se fijaron los criterios de selección y se justificó la terna escogida.
+
+El tercer y el cuarto objetivo, de diseño e implementación, se materializaron en el
+capítulo de metodología y en el de diseño experimental e implementación: se definió un
+escenario común con el conjunto de datos, el modelo, el algoritmo y los hiperparámetros
+constantes, y se adaptó ese escenario a la arquitectura propia de cada herramienta. El
+quinto objetivo,
+relativo a la recogida de métricas de aprendizaje, rendimiento y consumo de recursos,
+y el sexto, sobre la evaluación de la experiencia práctica de uso, se desarrollaron en
+el capítulo de resultados mediante una comparativa cuantitativa de rendimiento y dos
+valoraciones cualitativas, de usabilidad y de flexibilidad. Por último, el séptimo
+objetivo, de comparación crítica y señalamiento de ventajas, limitaciones y escenarios
+de uso, se atendió en la comparativa transversal entre \textit{frameworks} y se recoge,
+condensado, en las conclusiones que siguen.
+
+\section{Conclusiones principales}
+\label{sec:conclusiones-principales}
+
+La conclusión central del trabajo es que, bajo idénticas condiciones de datos, modelo
+e hiperparámetros, la elección del \textit{framework} influye poco en la calidad del modelo y
+mucho en el coste de obtenerlo, en la experiencia de desarrollo y en la estabilidad
+del modo concurrente. Esta idea, que articula los tres ejes, se concreta a
+continuación.
+
+\subsection{Rendimiento}
+\label{sec:concl-rendimiento}
+
+En modo secuencial, los tres \textit{frameworks} alcanzaron precisiones muy próximas en el
+experimento principal, en torno al 90,7--92,0\,\%, con una separación máxima de poco más
+de un punto porcentual entre el mejor y el peor resultado. Esa convergencia confirma
+que, cuando se mantienen constantes el conjunto de datos, la arquitectura del modelo y
+la configuración de entrenamiento, la herramienta apenas condiciona la precisión final
+del modelo global. Las diferencias relevantes aparecieron en otros indicadores: el
+tiempo de ejecución, la utilización de la GPU y, sobre todo, el comportamiento en modo
+concurrente. En el experimento principal, NVIDIA FLARE y FedML registraron tiempos
+prácticamente equivalentes, ligeramente inferiores al de Flower, y FedML fue el único cuyo modo
+concurrente llegó a completarse en el entorno utilizado, aunque esas ejecuciones no
+proporcionaron una precisión final comparable en los registros analizados.
+El modo concurrente marcó además el límite del equipo utilizado: ninguna de las tres
+herramientas resultó inmune a las restricciones de recursos, si bien solo el backend
+MPI de FedML representó una concurrencia real entre procesos.
+
+\subsection{Usabilidad}
+\label{sec:concl-usabilidad}
+
+En el eje de usabilidad, los tres \textit{frameworks} resultaron funcionalmente aptos para el
+caso de estudio, pero ofrecieron experiencias de desarrollo claramente distintas.
+Flower fue la herramienta más accesible y de menor coste de aprendizaje, con una
+puesta en marcha directa y un flujo secuencial estable. NVIDIA FLARE destacó por la
+trazabilidad y la riqueza de sus registros, a costa de una instalación sensible a las
+versiones, un número elevado de conceptos propios y una depuración exigente. FedML
+ocupó una posición intermedia, equilibrada pero condicionada por la fiabilidad de su
+instrumentación y por el trabajo adicional de extracción de métricas. De esta lectura
+se desprende una recomendación dependiente del perfil del proyecto: Flower para
+prototipado rápido, docencia o trabajos en los que el tiempo hasta el primer resultado
+es crítico; NVIDIA FLARE cuando se priorizan la trazabilidad, la reproducibilidad
+rigurosa y la cercanía a un despliegue real; y FedML cuando interesa disponer de varios
+backends de ejecución bajo una misma configuración.
+
+\subsection{Flexibilidad}
+\label{sec:concl-flexibilidad}
+
+En flexibilidad, las tres herramientas obtuvieron una valoración global equivalente, lo
+que indica que todas permiten el tipo de adaptaciones que exige este trabajo: integrar
+un modelo y un conjunto de datos propios, editar el entrenamiento local, sustituir la
+estrategia de agregación, registrar métricas a medida y reproducir los experimentos
+mediante ficheros y scripts. La diferenciación entre ellas no está, por tanto, en la
+cifra global, sino en el perfil cualitativo: la simplicidad para sustituir la estrategia
+de agregación y la orientación al despliegue en la nube de Flower; la profundidad en
+seguridad y privacidad y la vocación de producción de NVIDIA FLARE; y la extensibilidad
+por componentes y la experimentación algorítmica de FedML.
+
+Un hallazgo transversal a los tres ejes es la fragilidad de las
+estrategias adaptativas de la familia FedOpt. En los tres \textit{frameworks} fue posible
+configurar FedAdam y FedAdagrad, pero su ejecución resultó inestable con poca
+configuración —divergían, fallaban o no llegaban a aprender según el caso—, lo que
+evidencia que la mera disponibilidad de una estrategia no equivale a su estabilidad:
+esta depende de un ajuste deliberado de hiperparámetros, especialmente cuando el número
+de rondas es reducido.
+
+La lectura conjunta de los tres ejes conduce, así, a una conclusión única: seleccionar un
+\textit{framework} de aprendizaje federado atendiendo solo a su rendimiento resulta insuficiente,
+porque en condiciones equivalentes las tres herramientas rinden de forma prácticamente
+indistinguible y la diferencia real reside en cuánto cuesta llegar a ese modelo, en lo
+cómodo que resulta el desarrollo y en el margen de adaptación que ofrece cada una.
+
+\section{Aportaciones del trabajo}
+\label{sec:aportaciones}
+
+La aportación principal de este trabajo es una comparación experimental, razonada y
+reproducible de tres \textit{frameworks} de aprendizaje federado, que ayuda a cubrir un hueco
+detectado en el estado del arte: la mayoría de los estudios previos se centra en
+aspectos cualitativos o documentales y rara vez mide, sobre un mismo escenario y en
+condiciones equivalentes, tanto la precisión del modelo como el consumo de recursos de
+cada herramienta. Sobre esa idea general, el trabajo aporta varios elementos concretos.
+
+En primer lugar, el diseño de un escenario experimental común y controlado, con el
+conjunto de datos, el modelo, el algoritmo, los hiperparámetros y el hardware fijados,
+que permite atribuir las diferencias observadas al \textit{framework} y no a otros factores. En
+segundo lugar, una evaluación articulada en tres ejes complementarios —rendimiento,
+usabilidad y flexibilidad— que ofrece una visión más completa que la habitual centrada
+solo en la precisión o en la velocidad. En tercer lugar, dos instrumentos de valoración
+reutilizables: una rúbrica de usabilidad basada en las dimensiones de experiencia de
+uso y una rúbrica de flexibilidad con diez criterios, que separan de forma explícita la
+evidencia experimental de la documental. Por último, la documentación rigurosa del
+comportamiento en modo concurrente, incluidas las incidencias de cada herramienta, que
+constituye una evidencia práctica de interés para quien deba afrontar este tipo de
+ejecuciones en hardware limitado.
+
+\section{Limitaciones del estudio}
+\label{sec:limitaciones-conclusiones}
+
+Las conclusiones anteriores deben interpretarse a la luz de las limitaciones ya
+señaladas en la metodología. La principal es de hardware: la GPU de 6\,GB y los 14\,GiB
+de memoria RAM del equipo condicionaron el modo concurrente en las tres herramientas, de
+modo que el comportamiento concurrente refleja tanto el diseño de cada \textit{framework} como el
+límite del entorno de pruebas. Además, cada herramienta se ejecutó en un entorno de
+software distinto, con versiones diferentes de Python, PyTorch y CUDA, lo que supone una
+amenaza menor a la validez de la comparación de rendimiento, mitigada al documentar las
+versiones exactas.
+
+A ello se añaden otras restricciones de alcance. El estudio se limita a una distribución
+de datos IID, por lo que no evalúa el efecto de la heterogeneidad no IID. Los
+hiperparámetros se fijaron a priori, sin optimización individual por \textit{framework}, de modo
+que los resultados corresponden a esa configuración concreta. Cada configuración se
+ejecutó una sola vez con una semilla fija, por lo que no se dispone de medidas de
+variabilidad entre repeticiones y los valores deben leerse como una única observación
+por configuración. Toda la experimentación se realizó en simulación sobre una sola
+máquina, sin latencias de red reales ni efectos propios de un despliegue distribuido.
+Por último, las métricas de consumo de recursos dependen del hardware empleado y las
+valoraciones de usabilidad y flexibilidad, aunque apoyadas en evidencias registradas,
+incorporan el juicio del autor como desarrollador, por lo que deben tomarse como una
+guía cualitativa y no como una medida absoluta.
+
+\section{Líneas de trabajo futuro}
+\label{sec:trabajo-futuro}
+
+El trabajo abre varias líneas de continuación que prolongan de forma natural lo
+realizado.
+
+\begin{itemize}
+  \item \textbf{Escenarios no IID.} Repetir la comparación con particiones no
+  independientes ni idénticamente distribuidas permitiría observar cómo afecta la
+  heterogeneidad de los datos al rendimiento y a la convergencia de cada \textit{framework}, un
+  factor deliberadamente aislado en este estudio.
+
+  \item \textbf{Recuperación de la precisión del modo concurrente de FedML.} Dado que
+  las ejecuciones concurrentes de FedML completaron pero no registraron una precisión
+  final extraíble, una evaluación a posteriori del modelo guardado, con el mismo
+  procedimiento de evaluación centralizada del modo secuencial, permitiría incorporar
+  esos resultados a la comparación.
+
+  \item \textbf{Análisis de variabilidad.} Ejecutar cada configuración con varias
+  semillas haría posible reportar media y desviación típica y estimar la significación
+  de las diferencias observadas, superando la limitación de la observación única.
+
+  \item \textbf{Ajuste de las estrategias adaptativas.} Profundizar en la
+  configuración de la familia FedOpt —tasa de aprendizaje del servidor, factor de
+  adaptabilidad y número de rondas— permitiría determinar en qué condiciones FedAdam y
+  FedAdagrad resultan competitivos frente a FedAvg.
+
+  \item \textbf{Despliegue distribuido real.} Trasladar el experimento de la simulación
+  a un despliegue con clientes en máquinas distintas mediría latencias de red y efectos
+  de un entorno federado realista, especialmente relevante para NVIDIA FLARE y FedML,
+  orientados a producción.
+
+  \item \textbf{Mecanismos de seguridad y privacidad.} Evaluar de forma experimental la
+  privacidad diferencial, la agregación segura o el cifrado, capacidades que en este
+  trabajo solo se verificaron documentalmente, completaría el análisis de flexibilidad
+  con evidencia ejecutada.
+\end{itemize}
+
+\section{Reflexión final}
+\label{sec:reflexion-final}
+
+El desarrollo de este trabajo ha mostrado que comparar herramientas de aprendizaje
+federado exige mucho más que medir precisiones: obliga a implementar un mismo escenario
+sobre arquitecturas muy distintas, a instrumentar la ejecución con cuidado y a
+distinguir con honestidad entre lo que se ha verificado experimentalmente y lo que solo
+consta en la documentación. El resultado es una fotografía equilibrada de tres
+herramientas que, lejos de poder ordenarse en un ranking absoluto, responden a
+prioridades complementarias. La principal enseñanza, tanto para este estudio como para
+quien deba seleccionar un \textit{framework} en un proyecto similar, es que la decisión debe
+guiarse por el contexto —el coste asumible, la experiencia de desarrollo buscada y las
+necesidades de flexibilidad y despliegue— y no por una supuesta superioridad en
+precisión que, en condiciones equivalentes, apenas distingue a unas herramientas de
+otras.

@@ -1,0 +1,996 @@
+% =====================================================================
+%  Capítulo: Resultados de flexibilidad
+%  Plantilla TFG/TFM EPS - Universidad de Alicante
+%  Registrar en main.tex con: \input{contenido/capitulos/flexibilidad}
+%  (dentro de \mainmatter, tras el capítulo de resultados de rendimiento)
+% =====================================================================
+
+\chapter{Resultados de flexibilidad}\label{chap:flexibilidad}
+
+Este capítulo presenta el tercer eje de la comparación: la flexibilidad de
+cada framework. A diferencia de la comparativa de rendimiento, que es
+cuantitativa, y de la valoración de usabilidad, que recoge la percepción de uso,
+la flexibilidad describe una propiedad arquitectónica: hasta qué punto la
+herramienta permite adaptarse a escenarios distintos de los previstos por defecto.
+Conviene recordar que este eje no debe confundirse con la participación parcial
+de clientes medida en el experimento e3, que es una variación cuantitativa del
+escenario; aquí el término flexibilidad se reserva para la capacidad de
+modificar, sustituir o ampliar el comportamiento del framework.
+
+La valoración se apoya en los diez criterios F1--F10 definidos en la
+Sección~\ref{sec:flex-criterios} y se puntúa con la escala de tres niveles
+(0, 1, 2) de la Tabla~\ref{tab:escala-flexibilidad}. Para cada framework se
+distinguen dos planos de evidencia. El primero es la evidencia experimental:
+cambios efectivamente realizados en el código, la configuración y los scripts, y
+ejecuciones reales sobre el escenario común. El segundo es la evidencia
+documental: funcionalidades avanzadas descritas en la documentación oficial pero
+no implementadas en los experimentos del trabajo. Esta separación es deliberada y
+evita presentar como probado aquello que solo se ha revisado en la documentación,
+manteniendo así la comparabilidad del diseño experimental.
+
+\section{Flexibilidad de Flower}\label{sec:flex-flower}
+
+Flower es un framework agnóstico respecto a la biblioteca de aprendizaje
+automático y con una separación clara entre la lógica del cliente y la del
+servidor~\parencite{beutel2020flower}, rasgos que condicionan directamente su
+flexibilidad. La evaluación experimental se centró en cinco capacidades: modificar
+la configuración federada, sustituir la estrategia de agregación, integrar un
+modelo y un conjunto de datos propios en PyTorch, registrar métricas personalizadas
+y alternar el modo de ejecución. Todas las ejecuciones se realizaron con
+\texttt{flwr} 1.29.0 sobre el backend de simulación Ray~\parencite{moritz2018ray},
+con Python 3.12 (entorno \texttt{tfg-flower}), una GPU NVIDIA GeForce RTX~3050
+Laptop de 6\,GB y el modelo ResNet-18 adaptado sobre CIFAR-10 descrito en el
+capítulo de metodología.
+
+\subsection{Adaptaciones para habilitar la evaluación}\label{subsec:flex-flower-adapt}
+
+La primera evidencia de flexibilidad es la propia parametrización del escenario.
+Para que Flower recibiera la configuración de federación en cada ejecución, se
+ajustó el script de lanzamiento de modo que toda la configuración viajara en una
+única cadena pasada a \texttt{flwr run}, como muestra el Código~\ref{cod:flower-fedconfig}.
+Con ello fue posible variar el número de supernodos o clientes y la fracción de
+GPU asignada a cada uno en función del modo de ejecución, sin tocar el código de
+la aplicación. El parámetro \texttt{init-args-num-cpus=2} no es cosmético: se
+incorporó para resolver un agotamiento de memoria RAM del anfitrión, una
+limitación que se detalla en la Sección~\ref{subsec:flex-flower-lim}.
+
+\begin{bashcode}[title={run\_flower\_experiments.sh}, label={cod:flower-fedconfig}]
+--federation-config="num-supernodes=$clients \
+  init-args-num-cpus=2 \
+  client-resources-num-cpus=1 \
+  client-resources-num-gpus=$gpu_share"
+\end{bashcode}
+
+Una segunda adaptación afectó a la declaración de la estrategia. Flower exige que
+las claves que se sobrescriben mediante \texttt{-{}-run-config} estén previamente
+declaradas en la sección \texttt{[tool.flwr.app.config]} del fichero
+\texttt{pyproject.toml}; de lo contrario, la ejecución aborta con el mensaje
+\mintinline{text}{Key 'strategy' is not present in the main dictionary}. Por ese
+motivo se añadió la clave \texttt{strategy} a la configuración de la aplicación,
+junto con el resto de hiperparámetros del escenario (Código~\ref{cod:flower-pyproject}).
+Asimismo, el valor de \texttt{learning-rate} se fijó en 0,02 para que coincidiera
+con el que el script aplica de forma efectiva, eliminando una posible fuente de
+confusión entre el valor declarado y el realmente utilizado.
+
+\begin{codigo}[title={pyproject.toml}, label={cod:flower-pyproject}]{toml}
+[tool.flwr.app.config]
+num-server-rounds = 3
+fraction-train = 0.5
+fraction-evaluate = 0.0
+local-epochs = 1
+learning-rate = 0.02
+batch-size = 32
+strategy = "fedavg"
+\end{codigo}
+
+\subsection{Selección dinámica de la estrategia de agregación}\label{subsec:flex-flower-strategy}
+
+El núcleo de la evaluación experimental de flexibilidad fue la sustitución de la
+estrategia de agregación sin alterar el resto del sistema. Para ello se modificó
+el servidor de Flower de manera que la estrategia se seleccionara dinámicamente a
+partir de la configuración de ejecución, leyendo la clave \texttt{strategy} de
+\mintinline{python}{context.run_config}. El servidor instancia entonces la clase
+correspondiente y, en el caso de las estrategias adaptativas, fija los
+hiperparámetros del optimizador del servidor antes de iniciar el entrenamiento,
+como recoge el Código~\ref{cod:flower-strategy}. Gracias a este diseño, el mismo
+código de cliente, modelo y conjunto de datos puede ejecutarse con distintas
+estrategias modificando únicamente la lógica del servidor.
+
+\begin{pythoncode}[title={server\_app.py}, label={cod:flower-strategy}]
+from flwr.serverapp.strategy import FedAvg, FedAdagrad, FedAdam
+
+strategy_name = str(context.run_config.get("strategy", "fedavg")).lower()
+
+if strategy_name == "fedadam":
+    strategy_class = FedAdam
+    adaptive_kwargs = dict(
+        eta=float(context.run_config.get("server-lr", 0.01)),
+        tau=float(context.run_config.get("tau", 0.01)),
+    )
+elif strategy_name == "fedadagrad":
+    strategy_class = FedAdagrad
+    adaptive_kwargs = dict(
+        eta=float(context.run_config.get("server-lr", 0.01)),
+        tau=float(context.run_config.get("tau", 0.01)),
+    )
+else:
+    strategy_class = FedAvg
+    adaptive_kwargs = {}
+
+strategy = strategy_class(**common_kwargs, **adaptive_kwargs)
+\end{pythoncode}
+
+Las estrategias FedAdam y FedAdagrad pertenecen a la familia de optimización
+federada adaptativa propuesta por \textcite{reddi2021adaptive}, que generaliza
+FedAvg sustituyendo el promedio del servidor por un optimizador con momento y tasa
+de aprendizaje propios. Con los valores por defecto de Flower
+(\texttt{eta}~=~0,1 y \texttt{tau}~=~0,001), ambas estrategias divergieron
+numéricamente en este escenario: la pérdida del modelo global creció hasta el
+orden de $10^{9}$ mientras las pérdidas locales de entrenamiento descendían con
+normalidad. El problema se localiza en el paso de agregación del servidor, donde
+una tasa de aprendizaje alta combinada con un factor de adaptabilidad pequeño
+produce primeros pasos desproporcionados antes de que el segundo momento se
+estabilice. Reducir la tasa del servidor a \texttt{eta}~=~0,01 y elevar el factor
+a \texttt{tau}~=~0,01 estabilizó el entrenamiento. Lejos de restar valor a la
+evaluación, este ajuste evidencia precisamente la flexibilidad buscada: Flower
+expone esos hiperparámetros de agregación y permite configurarlos desde el
+servidor.
+
+\subsection{Mini-experimento de flexibilidad}\label{subsec:flex-flower-mini}
+
+Para comprobar la sustitución de estrategias de forma controlada se definió una
+variante reducida del experimento e3, denominada \texttt{e3\_flex\_mini}, cuyos
+parámetros recoge la Tabla~\ref{tab:flex-flower-config}. La finalidad de esta
+prueba no era comparar el rendimiento de aprendizaje, sino demostrar que Flower
+permite cambiar la estrategia federada y la configuración de participación sin
+rehacer la implementación, reduciendo a la vez el coste temporal de las pruebas.
+Se ejecutó con una única semilla (42) y una repetición, por lo que las cifras de
+aprendizaje son auxiliares y no llevan estimación de variabilidad.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Configuración del mini-experimento de flexibilidad de Flower.}
+  \label{tab:flex-flower-config}
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Parámetro} & \textbf{Valor} \\
+    \midrule
+    Clientes totales & 8 \\
+    Clientes por ronda & 4 \\
+    Fracción de entrenamiento & 0,5 \\
+    Rondas federadas & 3 \\
+    Épocas locales & 1 \\
+    Tamaño de lote & 32 \\
+    Tasa de aprendizaje (cliente) & 0,02 \\
+    \texttt{eta} servidor (FedAdam/FedAdagrad) & 0,01 \\
+    \texttt{tau} (FedAdam/FedAdagrad) & 0,01 \\
+    Modo de ejecución & Secuencial \\
+    Repeticiones / semilla & 1 / 42 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Los tres mini-experimentos terminaron correctamente, lo que confirma que el mismo
+flujo se ejecutó con FedAvg, FedAdam y FedAdagrad manteniendo constantes el
+conjunto de datos, el modelo, el número de clientes, los clientes por ronda, las
+rondas, las épocas locales, el tamaño de lote y la tasa de aprendizaje del
+cliente. La Tabla~\ref{tab:flex-flower-resultados} resume las métricas obtenidas.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados del mini-experimento de flexibilidad de Flower con tres
+  estrategias de agregación. Las cifras son auxiliares y no deben interpretarse
+  como una comparación de rendimiento. La memoria de GPU corresponde al pico
+  reservado por PyTorch al proceso del cliente, métrica comparable entre
+  estrategias.}
+  \label{tab:flex-flower-resultados}
+  \begin{tabular}{lcccrcr}
+    \toprule
+    \textbf{Estrategia} & \textbf{Estado} & \textbf{Acc.} & \textbf{Loss} &
+    \textbf{Dur. (s)} & \textbf{GPU proc. (MiB)} & \textbf{Energía (Wh)} \\
+    \midrule
+    FedAvg     & success & 0,4257 & 1,5265 & 132 & $\approx$289 & 1,272 \\
+    FedAdam    & success & 0,1410 & 2,3401 & 124 & $\approx$289 & 1,252 \\
+    FedAdagrad & success & 0,1000 & 18,7832 & 144 & $\approx$289 & 1,123 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Estos resultados no permiten concluir que una estrategia sea superior a otra, por
+dos motivos. En primer lugar, se trata de un mini-experimento de solo tres rondas
+y una época local, insuficiente para que las estrategias adaptativas estabilicen
+su segundo momento y converjan; con los hiperparámetros ajustados ya no divergen,
+pero todavía no alcanzan el comportamiento de FedAvg. En segundo lugar, se ejecutó
+con una única semilla, sin medida de variabilidad. Conviene además una
+advertencia de medición: la memoria de GPU reportada por \texttt{nvidia-smi} a
+nivel de sistema mostró un valor anómalo de 1623~MiB en la ejecución de
+FedAdagrad frente a 757~MiB en las otras dos, atribuible a memoria ocupada por
+otras aplicaciones del equipo durante esa corrida; el consumo real por proceso fue
+prácticamente idéntico ($\approx$289~MiB) en las tres estrategias, por lo que para
+cualquier comparación debe emplearse la métrica por proceso. La conclusión
+experimental válida es que Flower permitió sustituir la estrategia federada entre
+FedAvg, FedAdam y FedAdagrad sin modificar el cliente, el modelo ni el conjunto de
+datos, demostrando su flexibilidad para alterar la lógica de agregación desde el
+servidor y la configuración de ejecución.
+
+\subsection{Integración de modelo, datos y métricas}\label{subsec:flex-flower-integracion}
+
+Más allá de las estrategias, la evaluación confirmó que Flower integra sin
+fricción un modelo y un conjunto de datos propios. El modelo es la ResNet-18
+adaptada a CIFAR-10, construida en PyTorch sustituyendo la primera convolución por
+una de núcleo 3$\times$3 y eliminando el \textit{maxpool} inicial, mientras que el
+conjunto de datos se carga mediante \mintinline{python}{FederatedDataset} con un
+particionador IID. El bucle de entrenamiento local es código propio del cliente:
+emplea descenso de gradiente estocástico con momento y \textit{weight decay},
+entropía cruzada como función de pérdida y un número de épocas, tasa y tamaño de
+lote configurables. Además, el cliente registra métricas personalizadas, entre
+ellas la pérdida de entrenamiento, el número de ejemplos, la duración y el pico de
+memoria de GPU asignada por PyTorch, que el script de ejecución vuelca junto con
+los registros completos en ficheros de resumen reutilizables. Esta combinación de
+modelo propio, bucle de entrenamiento editable y métricas a medida sustenta una
+valoración alta en los criterios de personalización, integración y
+reproducibilidad.
+
+\subsection{Capacidades avanzadas según la documentación}\label{subsec:flex-flower-doc}
+
+Más allá de lo ejecutado, la documentación oficial de Flower (versión 1.31) describe
+un conjunto amplio de técnicas de flexibilidad que se valoran como evidencia
+documental. En el plano de la configuración y el control del servidor, se detallan
+cuatro vías de personalización de las estrategias: ajustar los parámetros de una
+estrategia existente (\texttt{fraction\_train}, \texttt{fraction\_evaluate},
+\texttt{min\_available\_nodes}); inyectar funciones de devolución como
+\texttt{evaluate\_fn} que el servidor ejecuta en momentos concretos; sobrescribir
+métodos internos como \texttt{configure\_train}, \texttt{aggregate\_fit} o
+\texttt{aggregate\_evaluate}; e implementar una estrategia nueva heredando de
+\texttt{BaseStrategy}~\parencite{beutel2020flower}. La misma documentación muestra cómo
+enviar configuraciones por ronda mediante \texttt{ConfigRecord} —por ejemplo, reducir
+progresivamente la tasa de aprendizaje leyendo \texttt{server\_round}— y cómo agregar
+métricas con criterios propios a través de \texttt{evaluate\_metrics\_aggr\_fn}, en
+lugar del promedio ponderado por número de ejemplos. Los clientes, sin estado por
+defecto, pueden conservar información entre rondas mediante \texttt{Context.state}, lo
+que habilita técnicas como el \textit{checkpointing} en el cliente.
+
+Una pieza distintiva son los \textit{Mods}, funciones que interceptan los mensajes
+entre servidor y cliente para transformarlos sin alterar la lógica principal; se
+encadenan en un orden definido y permiten, por ejemplo, recortar gradientes
+(\texttt{fixedclipping\_mod}, \texttt{adaptiveclipping\_mod}) o limitar el tamaño de
+los mensajes (\texttt{message\_size\_mod})~\parencite{beutel2020flower}. Sobre esta
+base se construye la privacidad diferencial, documentada en modo preliminar en tres
+variantes —central del lado del servidor, central del lado del cliente y local
+mediante \texttt{LocalDpMod}—, todas con recorte y ruido gaussiano configurables, a las
+que se suma la agregación segura. La documentación también ejemplifica esquemas no
+estándar, como FedBN —que excluye los parámetros de normalización por lotes del
+intercambio para preservar las estadísticas locales de cada cliente—, el aprendizaje
+federado vertical y la integración con XGBoost.
+
+La documentación recoge asimismo soporte para el entrenamiento asíncrono, si bien de
+carácter experimental y fuera de las guías principales. Las notas de versión describen
+una \textit{Driver API} experimental (versión 1.2) que ejecuta un servidor programable,
+asíncrono y multi-inquilino, y la API \textit{Flower Next} (versión 1.8), un conjunto de
+primitivas de bajo nivel que permite personalizar el bucle de entrenamiento e incluye,
+de forma explícita, soporte para aprendizaje federado asíncrono y esquemas cíclicos,
+con un \texttt{ServerApp} capaz de permanecer activo de forma
+indefinida~\parencite{beutel2020flower}. Por su naturaleza en desarrollo y de bajo
+nivel, esta capacidad se valora como soporte parcial y no como una funcionalidad
+directa y estable. Todas estas capacidades se reconocen como existentes, pero no se
+contabilizan como demostradas empíricamente en este trabajo.
+
+\subsection{Ejecución, despliegue y operación según la documentación}\label{subsec:flex-flower-deploy}
+
+La flexibilidad de Flower se extiende a su modelo de ejecución y despliegue. En local,
+los comandos \texttt{flwr run} y \texttt{flwr list} levantan automáticamente un
+\textit{SuperLink} que gestiona las ejecuciones, mientras que las simulaciones se
+lanzan sobre el \textit{Simulation Runtime}, cuyo número de \textit{SuperNodes} y
+recursos por cliente se fijan de forma persistente o se sobrescriben por ejecución;
+la documentación contempla incluso simulaciones sobre un clúster Ray
+multi-anfitrión~\parencite{beutel2020flower}. Para despliegues distribuidos, la
+federación se compone de un \textit{SuperLink} que coordina y varios
+\textit{SuperNodes} que ejecutan los clientes, modelo que la documentación lleva hasta
+entornos de producción en la nube —Google Cloud sobre Kubernetes, Microsoft Azure y
+Red Hat OpenShift— e incluso a la interconexión de varios clústeres mediante Skupper.
+
+Este recorrido se acompaña de mecanismos de seguridad operativa que también cuentan
+para la flexibilidad: cifrado de las comunicaciones mediante TLS con certificados
+propios, autenticación de \textit{SuperNodes} basada en firmas y lista blanca de
+claves públicas, autenticación de cuentas de usuario mediante OpenID Connect con
+autorización fina y un registro de auditoría en formato JSON que traza qué actor
+ejecuta cada acción~\parencite{beutel2020flower}. Por último, la interfaz de línea de
+comandos puede emitir su salida en formato JSON mediante la opción
+\texttt{-{}-format json} para integrarse en flujos automatizados, y las herramientas de
+gestión de federaciones permiten inspeccionar nodos, ejecuciones y estado. Ninguna de
+estas capacidades se ejercitó en los experimentos, pero refuerzan la valoración de
+Flower en los modos de ejecución y despliegue y en la integración con herramientas
+externas.
+
+\subsection{Limitaciones observadas}\label{subsec:flex-flower-lim}
+
+El hallazgo más relevante de la evaluación afecta a la memoria RAM del anfitrión y
+no a la GPU. El motor de simulación de Flower delega en Ray, que al iniciarse
+detecta los procesadores del equipo (veinte en este caso) y prelanza un proceso
+\textit{worker} ocioso por cada uno; cada worker carga el intérprete y las
+bibliotecas (en torno a 0,28~GB), de modo que el conjunto de workers, sumado al
+proceso de simulación y al resto del sistema, agotaba los aproximadamente 14,6~GB
+de RAM disponibles. Ray respondía terminando procesos con un error de memoria
+agotada, lo que ocurría incluso en modo secuencial, donde a priori solo hay un
+cliente entrenando a la vez. La solución fue limitar el número de procesadores que
+ve la \textit{Simulation Runtime} mediante \texttt{init-args-num-cpus=2}, lo que
+reduce drásticamente la huella de RAM. Se trata de un resultado comparativo de
+interés: el backend basado en Ray presenta una huella de memoria de anfitrión
+notablemente mayor que el simulador de NVIDIA FLARE o el backend de proceso único
+de FedML, que se ejecutan en un único proceso, por lo que en equipos con poca RAM
+la simulación de Flower obliga a acotar los recursos manualmente.
+
+La ejecución concurrente, probada también mediante Ray con una fracción de GPU por
+cliente de 0,5, quedó condicionada por esta misma limitación de memoria, en línea
+con lo descrito en el capítulo de resultados de rendimiento. Por su parte, la
+divergencia de las estrategias adaptativas con los valores por defecto, ya
+comentada, es una limitación de uso y no del framework: las estrategias de la
+familia FedOpt son sensibles a la tasa de aprendizaje del servidor y requieren un
+ajuste deliberado, especialmente con pocas rondas~\parencite{reddi2021adaptive}.
+Ninguna de estas limitaciones impidió completar la evaluación, pero todas matizan
+la valoración final.
+
+\subsection{Valoración de la flexibilidad de Flower}\label{subsec:flex-flower-score}
+
+La Tabla~\ref{tab:flex-flower-score} resume la valoración de Flower sobre los diez
+criterios F1--F10, distinguiendo el tipo de evidencia que sustenta cada
+puntuación. Los criterios de personalización del modelo y los datos (F1), del
+entrenamiento local (F2), de la estrategia de agregación (F3) y de los algoritmos
+federados disponibles (F4) se valoran con la máxima puntuación a partir de
+evidencia experimental directa, al igual que los modos de ejecución y despliegue
+(F6), la integración con herramientas externas (F7) y la reproducibilidad (F10).
+El soporte de aprendizaje asíncrono (F5), la seguridad y privacidad (F8) y la
+modificación de la arquitectura federada (F9) reciben puntuación parcial por estar
+respaldados solo por documentación; en el caso de F5, mediante interfaces de bajo
+nivel todavía en desarrollo (la \textit{Driver API} y \textit{Flower Next}), por lo
+que se reconoce el soporte sin elevarlo a la máxima puntuación.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la flexibilidad de Flower según los criterios F1--F10.
+  El tipo de evidencia distingue las capacidades ejecutadas en los experimentos
+  (experimental) de las descritas en la documentación oficial (documental).}
+  \label{tab:flex-flower-score}
+  \begin{tabular}{clcl}
+    \toprule
+    \textbf{Criterio} & \textbf{Descripción} & \textbf{Punt.} & \textbf{Evidencia} \\
+    \midrule
+    F1  & Personalización del modelo y el dataset      & 2/2 & Experimental \\
+    F2  & Personalización del entrenamiento local      & 2/2 & Experimental \\
+    F3  & Estrategias de agregación personalizadas     & 2/2 & Experimental \\
+    F4  & Algoritmos federados disponibles             & 2/2 & Experimental \\
+    F5  & Aprendizaje federado asíncrono               & 1/2 & Documental \\
+    F6  & Modos de ejecución y despliegue              & 2/2 & Exp.\ + documental \\
+    F7  & Integración con herramientas externas        & 2/2 & Exp.\ + documental \\
+    F8  & Seguridad, privacidad y extensiones          & 1/2 & Documental \\
+    F9  & Modificación de la arquitectura federada     & 1/2 & Documental \\
+    F10 & Reproducibilidad y configuración             & 2/2 & Experimental \\
+    \midrule
+    \multicolumn{2}{r}{\textbf{Total}} & \multicolumn{2}{l}{\textbf{17/20}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+En conjunto, Flower obtiene una valoración alta en flexibilidad (17/20). La
+evidencia experimental muestra una herramienta cómoda de adaptar:
+permitió integrar un modelo y un conjunto de datos propios en PyTorch, editar el
+bucle de entrenamiento local, sustituir la estrategia de agregación entre FedAvg,
+FedAdam y FedAdagrad desde el servidor —incluyendo el ajuste de sus
+hiperparámetros— y automatizar la recogida de métricas. La valoración no alcanza
+el máximo porque varias capacidades avanzadas —el aprendizaje asíncrono, la
+privacidad diferencial, la agregación segura o los esquemas no horizontales— solo se
+verificaron documentalmente, y porque el soporte asíncrono se apoya en interfaces
+todavía experimentales; a ello se añade que la viabilidad práctica del modo
+concurrente quedó condicionada por la elevada huella de memoria del backend Ray en
+el equipo empleado. Estas conclusiones se contrastan con las de NVIDIA FLARE y FedML
+en la comparativa final del capítulo.
+
+% =====================================================================
+%  SECCIÓN AÑADIDA: Flexibilidad de NVIDIA FLARE
+% =====================================================================
+
+\section{Flexibilidad de NVIDIA FLARE}\label{sec:flex-nvflare}
+
+NVIDIA FLARE se presenta como un SDK de aprendizaje federado agnóstico al dominio
+y compatible con flujos de trabajo de aprendizaje automático ya existentes, con
+una orientación que abarca desde la simulación local hasta el despliegue en
+producción y en el borde~\parencite{roth2022nvflare,nvflareWelcome}. La evaluación
+experimental de su flexibilidad se apoya en un paquete de cinco ejecuciones de la
+variante reducida del experimento e3, la misma \texttt{e3\_flex\_mini} empleada con
+Flower (Subsección~\ref{subsec:flex-flower-mini}), con ocho clientes totales,
+cuatro por ronda, tres rondas, una época local, tamaño de lote 32, tasa de
+aprendizaje 0,02 y semilla 42, en modo secuencial con un único hilo del simulador.
+Conviene precisar el alcance: el paquete inspeccionado contiene una selección de
+suites concretas y no la totalidad del histórico de ejecuciones, por lo que las
+conclusiones experimentales se refieren únicamente a los archivos incluidos en él.
+
+\subsection{Diseño modular: jobs, componentes y workflows}\label{subsec:flex-nvflare-modular}
+
+La flexibilidad de NVIDIA FLARE descansa en su modelo de configuración modular. La
+unidad de ejecución es el \textit{job}, que describe por completo un experimento
+mediante ficheros de configuración de servidor y de cliente
+(\texttt{config\_fed\_server.conf} y \texttt{config\_fed\_client.conf}), en los que
+cada elemento del sistema se declara como un componente con su ruta de clase y sus
+argumentos de construcción~\parencite{nvflareComponents}. Al desplegar el job, el
+servidor y los clientes analizan esos ficheros e instancian dinámicamente los
+componentes declarados, registrándolos en el bucle de eventos del framework; cada
+componente se identifica con un \texttt{component\_id} que permite referenciarlo
+desde otros componentes o workflows~\parencite{nvflareComponents}. Este diseño es
+el que permite sustituir un agregador, un persistor, un \textit{executor}, un
+generador de objetos compartibles (\textit{Shareable}) o un filtro modificando la
+configuración, sin reescribir la aplicación completa.
+
+Sobre esa base de bajo nivel, la documentación ofrece además una capa de
+\textit{recipes} que empaqueta algoritmos y workflows habituales —FedAvg, FedProx,
+FedOpt, SCAFFOLD, aprendizaje cíclico, XGBoost, Sklearn, estadísticas federadas,
+evaluación cruzada, PSI, integración con Flower y swarm learning, entre
+otros~\parencite{nvflareRecipes}. Esta dualidad, configuración granular por
+componentes y configuración de alto nivel por recetas, sustenta una valoración
+elevada en personalización y reproducibilidad, y constituye el punto de partida de
+las adaptaciones realizadas para probar estrategias alternativas.
+
+\subsection{Adaptaciones para soportar las estrategias}\label{subsec:flex-nvflare-adapt}
+
+El objetivo de la prueba fue comprobar si un mismo job podía adaptarse para
+ejecutar FedAvg, FedProx y variantes FedOpt del servidor (FedAdagrad y FedAdam),
+manteniendo constante la estructura general del experimento. Para ello se
+introdujeron tres cambios de naturaleza distinta. En primer lugar, la selección de
+estrategia se trasladó al cliente, que admite los valores \texttt{fedavg},
+\texttt{fedprox}, \texttt{fedadam} y \texttt{fedadagrad} mediante un argumento de
+línea de órdenes que, por defecto, toma su valor de la variable de entorno
+\texttt{TFG\_FL\_STRATEGY}. En segundo lugar, FedProx se implementó en el
+entrenamiento local: cuando la estrategia es \texttt{fedprox} y el coeficiente
+proximal es positivo, el entrenamiento añade un término que penaliza la desviación
+de los pesos locales respecto al modelo global recibido al inicio de la tarea,
+manteniendo el descenso de gradiente estocástico como optimizador
+local~\parencite{nvflareAlgorithms}.
+
+El tercer cambio afecta al servidor y es el más relevante para la flexibilidad de
+agregación. Para las variantes FedOpt, el script de ejecución parchea el fichero de
+configuración del servidor sustituyendo el generador de compartibles por defecto,
+\mintinline{text}{FullModelShareableGenerator}, por
+\mintinline{text}{PTFedOptModelShareableGenerator}, y añade un componente de modelo
+fuente requerido por este generador, como ilustra el
+Código~\ref{cod:nvflare-fedopt}. Este generador actualiza el modelo global mediante
+un optimizador de PyTorch —y, opcionalmente, un planificador de tasa de
+aprendizaje— cuyos argumentos incluyen \texttt{optimizer\_args},
+\texttt{lr\_scheduler\_args}, \texttt{source\_model} y
+\texttt{device}~\parencite{nvflareFedopt}. En consecuencia, FedAdam y FedAdagrad no
+son recetas independientes, sino configuraciones de FedOpt que se obtienen
+seleccionando \mintinline{text}{torch.optim.Adam} o
+\mintinline{text}{torch.optim.Adagrad} como optimizador del servidor.
+
+\begin{codigo}[title={Fragmento representativo de config\_fed\_server.conf (FedOpt)}, label={cod:nvflare-fedopt}]{json}
+"shareable_generator": {
+  "path": "nvflare.app_opt.pt.fedopt.PTFedOptModelShareableGenerator",
+  "args": {
+    "source_model": "model",
+    "optimizer_args": { "path": "torch.optim.Adagrad" }
+  }
+},
+"components": [
+  { "id": "model", "path": "<ruta de la ResNet-18 adaptada>" }
+]
+\end{codigo}
+
+Una precaución metodológica relevante surgió con el dispositivo de ejecución. En
+todos los ficheros de configuración del cliente aparece \texttt{-{}-device cuda},
+pero en la ejecución de FedAdam en CPU el propio cliente seleccionó CPU porque
+\mintinline{python}{torch.cuda.is_available()} devolvió falso al lanzarse con
+\texttt{CUDA\_VISIBLE\_DEVICES} vacío. Por ello, el dispositivo realmente empleado
+debe leerse del registro de ejecución y no del fichero de configuración, criterio
+que se ha seguido al elaborar la Tabla~\ref{tab:flex-nvflare-resultados}.
+
+\subsection{Mini-experimento de flexibilidad}\label{subsec:flex-nvflare-mini}
+
+La Tabla~\ref{tab:flex-nvflare-resultados} resume las cinco ejecuciones. FedAvg
+sirvió de referencia y se ejecutó correctamente con el workflow \textit{Scatter and
+Gather}, en el que el servidor distribuye los pesos iniciales, los clientes
+entrenan localmente y devuelven sus pesos, y el sistema los agrega por promedio
+ponderado~\parencite{nvflareAlgorithms}. A partir de esa base, FedProx finalizó las
+tres rondas y los registros confirmaron \texttt{strategy=fedprox} con un coeficiente
+proximal \texttt{fedprox\_mu=0,001} activo durante el entrenamiento. FedAdagrad
+también completó las tres rondas como FedOpt real —y no como mera etiqueta— porque
+la configuración del servidor incorporaba el generador
+\mintinline{text}{PTFedOptModelShareableGenerator} y el registro mostraba las
+actualizaciones del servidor con \mintinline{text}{torch.optim.Adagrad}.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados del mini-experimento de flexibilidad de NVIDIA FLARE. Las
+  cifras de aprendizaje son auxiliares (tres rondas, una época, una semilla) y no
+  constituyen una comparación de rendimiento. El dispositivo real procede del
+  registro de ejecución, no del fichero de configuración del cliente.}
+  \label{tab:flex-nvflare-resultados}
+  \begin{tabular}{llccccrr}
+    \toprule
+    \textbf{Estrategia} & \textbf{Estado} & \textbf{Disp.} & \textbf{FedOpt} &
+    \textbf{Rondas} & \textbf{Dur. (s)} & \textbf{Acc.} & \textbf{Loss} \\
+    \midrule
+    FedAvg      & success & \texttt{cuda:0} & No  & 3 & 205  & 0,4178 & 1,5601 \\
+    FedProx     & success & \texttt{cuda:0} & No  & 3 & 225  & 0,4045 & 1,5876 \\
+    FedAdagrad  & success & \texttt{cuda:0} & Sí  & 3 & 199  & 0,1402 & 2,3785 \\
+    FedAdam     & failed  & \texttt{cuda:0} & Sí  & 0 & 77   & ---    & ---    \\
+    FedAdam     & success & \texttt{cpu}    & Sí  & 3 & 1280 & 0,2586 & 3,4439 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+El caso de FedAdam exige una lectura cuidadosa. La estrategia llegó a configurarse
+realmente mediante FedOpt con \mintinline{text}{torch.optim.Adam}, pero su ejecución
+en GPU abortó durante el paso de actualización del servidor
+(\mintinline{python}{torch.optim.Adam.step()}) con un error de inicialización de
+CUDA, registrado como \texttt{FATAL\_SYSTEM\_ERROR}. Para aislar el problema, la
+prueba se repitió en CPU, donde FedAdam completó las tres rondas; esta ejecución
+valida FedAdam como estrategia configurable, pero su duración (1280~s) es muy
+superior precisamente por entrenarse en CPU, de modo que no debe mezclarse con la
+comparativa de rendimiento en GPU del capítulo correspondiente. En coherencia con
+ello, la fila de la ejecución fallida no reporta precisión ni pérdida, ya que no
+completó ninguna ronda.
+
+Estos resultados no permiten ordenar las estrategias por calidad, por los mismos
+motivos señalados para Flower: tres rondas, una época local y una sola semilla son
+insuficientes para que las variantes adaptativas converjan. Su valor es
+demostrar que NVIDIA FLARE permite adaptar tanto el entrenamiento local como la
+lógica de actualización del servidor mediante configuración y componentes. Importa
+además una cautela de interpretación: la validez de FedAdagrad y FedAdam no se
+sustenta en el nombre de la ejecución, sino en la presencia del generador FedOpt y
+del optimizador del servidor en los registros. Del mismo modo, el valor
+\texttt{fedprox\_mu=0,001} que aparece en la configuración no implica que FedProx se
+aplique a todas las estrategias: en FedAdagrad y FedAdam el entrenamiento imprime
+\texttt{fedprox\_mu=0,0}, porque el término proximal solo se activa cuando la
+estrategia es FedProx.
+
+De esta experiencia se desprende una observación comparativa de interés. Frente a
+Flower, donde la estrategia se sustituía cambiando una única clase en el servidor,
+NVIDIA FLARE exigió modificar componentes del servidor, añadir un modelo fuente para
+FedOpt y comprobar en los registros que la estrategia configurada era realmente la
+que se ejecutaba. La flexibilidad de NVIDIA FLARE es, por tanto, amplia, pero su
+ejercicio práctico conlleva una complejidad de configuración mayor.
+
+\subsection{Capacidades avanzadas según la documentación}\label{subsec:flex-nvflare-doc}
+
+Como en el caso de Flower, varias capacidades relevantes no se ejecutaron en los
+experimentos y se valoran únicamente como evidencia documental. La documentación
+oficial las articula en torno a las \textit{Job Recipes}, una API de alto nivel que
+encapsula un trabajo federado exponiendo solo los parámetros clave —\texttt{min\_clients},
+\texttt{num\_rounds}, modelo y \textit{script} de entrenamiento— y ocultando la
+complejidad de controladores y \textit{workflows}~\parencite{nvflareRecipes}. Estas
+recetas se ejecutan sobre tres entornos intercambiables: \texttt{SimEnv} simula los
+clientes en procesos locales, \texttt{PocEnv} los lanza como procesos separados en la
+misma máquina y \texttt{ProdEnv} despliega el trabajo en una instalación de
+producción; un mismo trabajo puede así trasladarse de la simulación al despliegue sin
+cambiar el código~\parencite{nvflareRecipes}. El catálogo de recetas cubre FedAvg,
+FedProx, FedOpt —donde el optimizador del servidor se fija con un argumento que indica
+su ruta de clase e hiperparámetros, por ejemplo \texttt{torch.optim.SGD} con tasa y
+momento—, SCAFFOLD y el aprendizaje cíclico, además de XGBoost federado en sus
+variantes horizontal, \textit{bagging} y vertical~\parencite{nvflareAlgorithms,nvflareFedopt}.
+
+En cuanto al aprendizaje asíncrono, la receta \texttt{EdgeFedBuffRecipe}, orientada a
+dispositivos de borde, admite entrenamiento síncrono y asíncrono: en modo síncrono el
+servidor espera todas las actualizaciones antes de generar un nuevo modelo, mientras
+que en modo asíncrono lo genera en cuanto recibe la primera, lo que reduce el tiempo
+total cuando los dispositivos presentan latencias heterogéneas~\parencite{nvflareEdge,nvflareWelcome}.
+La receta expone parámetros como el número máximo de versiones de modelo activas o el
+tamaño de selección de dispositivos por ronda. No obstante, la propia documentación
+advierte de que la asincronía general aún no está disponible para todas las recetas y
+se concentra en el escenario de borde, por lo que su valoración se mantiene como
+soporte documental parcial.
+
+En materia de seguridad y privacidad, la documentación es notablemente extensa.
+NVIDIA FLARE implementa la privacidad mediante un mecanismo general de filtros que
+procesan los objetos compartibles antes o después de la comunicación, configurables en
+la receta como \texttt{task\_data\_filters} o \texttt{task\_result\_filters}. Soporta
+privacidad diferencial a nivel de muestra mediante la integración de DP-SGD con Opacus
+—controlada por los parámetros \texttt{epsilon} y \texttt{delta}— y filtros de DP local
+como \texttt{PercentilePrivacy}, que comparte solo las diferencias de pesos por encima
+de un percentil, \texttt{SVTPrivacy}, basado en la técnica del vector disperso con ruido
+de Laplace, y \texttt{StatisticsPrivacyFilter} para estadísticas
+federadas~\parencite{nvflareDP}. A un nivel superior, la solución de computación
+confidencial ejecuta la agregación dentro de un entorno de ejecución confiable
+(\textit{Trusted Execution Environment}) sobre hardware como AMD SEV-SNP o Intel TDX,
+protege el modelo y el código del cliente en máquinas virtuales confidenciales y
+permite combinar privacidad diferencial con cifrado homomórfico o agregación
+segura~\parencite{nvflareSecurity,nvflareConfidential}.
+
+Por último, NVIDIA FLARE documenta esquemas descentralizados mediante los
+\textit{workflows} controlados por clientes, construidos sobre las clases base
+\texttt{ServerSideController} y \texttt{ClientSideController} para escenarios donde el
+servidor no es plenamente confiable~\parencite{nvflareSwarm}. Entre ellos destacan el
+aprendizaje cíclico, en el que cada cliente entrena con el modelo recibido del anterior
+según un orden fijo o aleatorio~\parencite{nvflareCyclic}; el aprendizaje \textit{swarm},
+que designa un cliente agregador distinto por ronda y mejora la resiliencia frente a
+fallos del servidor~\parencite{nvflareSwarm}; y la evaluación cruzada entre sitios, que
+permite a los clientes validar modelos de otros mediante comunicación entre pares sin
+exponerlos al servidor. A esto se suman el aprendizaje vertical con XGBoost y las
+estadísticas federadas, así como las utilidades para integrar el seguimiento de
+experimentos con TensorBoard, MLflow o Weights \& Biases sobre cualquier
+receta~\parencite{nvflareTracking,nvflareRecipes}. La documentación reconoce, además,
+dos cautelas: la API de recetas se encuentra en estado de \textit{technical preview} y
+no cubre todavía todos los algoritmos, y la configuración de la computación confidencial
+exige infraestructura especializada.
+
+\subsection{Limitaciones observadas}\label{subsec:flex-nvflare-lim}
+
+La limitación más concreta de la evaluación fue el fallo de FedAdam en GPU por un
+error de inicialización de CUDA durante la actualización FedOpt del servidor. Debe
+interpretarse como una incidencia técnica del entorno, no como una carencia del
+framework, puesto que la misma configuración completó las tres rondas en CPU; aun
+así, impide presentar FedAdam como ejecución correcta en GPU. La segunda limitación
+es la complejidad práctica ya señalada: a diferencia de Flower, alterar la lógica de
+agregación obligó a intervenir en componentes del servidor y a validar
+cuidadosamente los registros, lo que incrementa la probabilidad de errores de
+configuración. Por último, el modo concurrente quedó condicionado por los recursos
+del equipo, en línea con lo expuesto en el capítulo de resultados de rendimiento;
+aunque la documentación describe un sistema de ejecución multi-job con gestión de
+recursos, esa capacidad no pudo validarse de forma estable en el hardware empleado.
+
+\subsection{Valoración de la flexibilidad de NVIDIA FLARE}\label{subsec:flex-nvflare-score}
+
+La Tabla~\ref{tab:flex-nvflare-score} recoge la valoración sobre los criterios
+F1--F10, con el mismo convenio aplicado a Flower: puntuación máxima cuando existe
+evidencia experimental directa, puntuación parcial cuando la capacidad solo consta
+en la documentación y puntuación nula cuando no se identifica soporte. NVIDIA FLARE
+obtiene la máxima puntuación en personalización del modelo y los datos (F1), del
+entrenamiento local (F2), de la estrategia de agregación (F3) y de los algoritmos
+federados disponibles (F4), todos respaldados por las ejecuciones, así como en los
+modos de ejecución y despliegue (F6), la integración con herramientas externas (F7)
+y la reproducibilidad (F10). La diferencia respecto a Flower aparece en el
+aprendizaje asíncrono (F5): mientras que en Flower no se identificó soporte, NVIDIA
+FLARE lo documenta de forma explícita mediante FedBuff, lo que justifica una
+puntuación parcial. La seguridad y privacidad (F8) y la modificación de la
+arquitectura federada (F9) reciben también puntuación parcial por estar respaldadas
+solo documentalmente.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la flexibilidad de NVIDIA FLARE según los criterios
+  F1--F10. El tipo de evidencia distingue las capacidades ejecutadas en los
+  experimentos de las descritas en la documentación oficial.}
+  \label{tab:flex-nvflare-score}
+  \begin{tabular}{clcl}
+    \toprule
+    \textbf{Criterio} & \textbf{Descripción} & \textbf{Punt.} & \textbf{Evidencia} \\
+    \midrule
+    F1  & Personalización del modelo y el dataset      & 2/2 & Exp.\ + documental \\
+    F2  & Personalización del entrenamiento local      & 2/2 & Experimental \\
+    F3  & Estrategias de agregación personalizadas     & 2/2 & Experimental \\
+    F4  & Algoritmos federados disponibles             & 2/2 & Exp.\ + documental \\
+    F5  & Aprendizaje federado asíncrono               & 1/2 & Documental \\
+    F6  & Modos de ejecución y despliegue              & 2/2 & Exp.\ + documental \\
+    F7  & Integración con herramientas externas        & 2/2 & Exp.\ + documental \\
+    F8  & Seguridad, privacidad y extensiones          & 1/2 & Documental \\
+    F9  & Modificación de la arquitectura federada     & 1/2 & Documental \\
+    F10 & Reproducibilidad y configuración             & 2/2 & Exp.\ + documental \\
+    \midrule
+    \multicolumn{2}{r}{\textbf{Total}} & \multicolumn{2}{l}{\textbf{17/20}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+En conjunto, NVIDIA FLARE alcanza una valoración de flexibilidad de 17/20. La
+evidencia experimental
+demuestra que permite adaptar el entrenamiento local —incluido el término proximal
+de FedProx— y, sobre todo, la lógica de agregación del servidor mediante FedOpt, con
+FedAvg, FedProx y FedAdagrad ejecutados correctamente y FedAdam validado en CPU. A
+ello se suma una de las superficies de capacidades documentadas más amplias del
+estudio, especialmente sólida en seguridad y privacidad, que abarca aprendizaje
+asíncrono, workflows cíclicos y \textit{swarm}, privacidad
+diferencial, cifrado homomórfico y computación confidencial. El contrapunto es una
+complejidad de configuración superior a la de Flower y el hecho de que esas
+capacidades avanzadas solo se verificaron documentalmente; además, la ejecución de
+FedAdam en GPU falló por un error de CUDA y el modo concurrente quedó limitado por el
+hardware. Esta lectura se contrasta con la de los otros frameworks en la comparativa
+final del capítulo.
+
+% =====================================================================
+%  SECCIÓN AÑADIDA: Flexibilidad de FedML
+% =====================================================================
+
+\section{Flexibilidad de FedML}\label{sec:flex-fedml}
+
+FedML es una biblioteca de investigación y banco de pruebas para aprendizaje
+federado~\parencite{he2020fedml}, documentada actualmente dentro de la plataforma
+TensorOpera aunque la librería y los ejemplos siguen empleando el paquete
+\texttt{fedml}. Su documentación organiza el framework en varios escenarios
+—simulación, cross-silo y cross-device— y ofrece un catálogo amplio de algoritmos
+de referencia. La evaluación de su flexibilidad combina la implementación propia
+realizada para la comparativa, que extiende las abstracciones de FedML, con una
+prueba reducida de sustitución de estrategias. Conviene una precisión de alcance:
+por el coste computacional, la prueba reducida de FedML se ejecutó con cuatro
+clientes totales, dos por ronda y dos rondas, una configuración algo menor que la
+empleada con Flower y NVIDIA FLARE; las métricas de aprendizaje son, por tanto, una
+comprobación funcional y no una comparación de rendimiento.
+
+\subsection{Configuración y componentes personalizados}\label{subsec:flex-fedml-config}
+
+La configuración de FedML se apoya en un fichero \texttt{fedml\_config.yaml}
+estructurado en secciones (\texttt{common\_args}, \texttt{data\_args},
+\texttt{model\_args}, \texttt{train\_args}, \texttt{device\_args},
+\texttt{comm\_args} y \texttt{tracking\_args}), donde se declaran los parámetros
+federados como \texttt{federated\_optimizer}, \texttt{client\_num\_in\_total},
+\texttt{client\_num\_per\_round}, \texttt{comm\_round}, \texttt{epochs},
+\texttt{batch\_size}, \texttt{client\_optimizer} y \texttt{learning\_rate}~\parencite{fedmlSimApi}.
+Esta organización permitió variar clientes, rondas, épocas e hiperparámetros entre
+ejecuciones sin reescribir la aplicación.
+
+Más allá del fichero de configuración, la flexibilidad de FedML en este trabajo se
+sustenta en evidencia experimental directa: la implementación de la comparativa
+define un entrenador y un agregador propios que extienden las abstracciones
+\mintinline{python}{ClientTrainer} y \mintinline{python}{ServerAggregator} del
+framework. El entrenador \texttt{FedMLCifar10Trainer} encapsula el bucle de
+entrenamiento local sobre la ResNet-18 adaptada —descenso de gradiente estocástico,
+entropía cruzada y métricas propias—, mientras que el agregador
+\texttt{FedMLCifar10Aggregator} gobierna la evaluación del modelo global; ambos se
+conectan al flujo mediante \texttt{FedMLRunner}. La documentación respalda esta vía,
+al indicar que el usuario puede definir modelo, datos, optimizadores, funciones de
+pérdida y lógica de entrenamiento arbitrarios, así como dataloaders propios que
+respeten la estructura esperada por el simulador~\parencite{fedmlTrainer,fedmlDataloader}.
+Esta capacidad de sustituir componentes centrales mediante herencia sostiene una
+valoración alta en personalización del entrenamiento local, de la agregación y de la
+integración.
+
+\subsection{Sustitución de la estrategia federada}\label{subsec:flex-fedml-strategy}
+
+La prueba de flexibilidad consistió en ejecutar cuatro estrategias modificando
+únicamente la configuración, manteniendo constantes el conjunto de datos, el
+modelo y el resto de hiperparámetros. FedAvg y FedProx se seleccionan asignando
+\texttt{federated\_optimizer} a \texttt{"FedAvg"} o \texttt{"FedProx"}, mientras que
+FedAdam y FedAdagrad se obtienen mediante \texttt{federated\_optimizer:\ "FedOpt"}
+combinado con un optimizador de servidor \texttt{Adam} o \texttt{Adagrad}, tal como
+ilustra el Código~\ref{cod:fedml-config}. Durante las primeras pruebas, las
+variantes FedOpt fallaban porque FedML esperaba el atributo \texttt{ci} en los
+argumentos de configuración; tras añadir \texttt{ci:\ 0} a la configuración común,
+ambas pudieron completar la ejecución. La selección del algoritmo desde la
+configuración está respaldada por la documentación, que controla el optimizador
+federado a través del mismo campo~\parencite{fedmlSimApi}.
+
+\begin{yamlcode}[title={Fragmento de fedml\_config.yaml (FedAdam vía FedOpt)}, label={cod:fedml-config}]
+train_args:
+  federated_optimizer: "FedOpt"
+  server_optimizer: "Adam"
+  ci: 0
+  client_num_in_total: 4
+  client_num_per_round: 2
+  comm_round: 2
+  epochs: 1
+  batch_size: 32
+  learning_rate: 0.02
+\end{yamlcode}
+
+\subsection{Mini-experimento de flexibilidad}\label{subsec:flex-fedml-mini}
+
+La Tabla~\ref{tab:flex-fedml-resultados} resume las cuatro ejecuciones, todas
+finalizadas con estado \texttt{success}. FedAvg y FedProx concluyeron con métricas
+coherentes para una prueba de dos rondas, con precisiones del 43,01\,\% y el
+42,60\,\% respectivamente, lo que confirma el soporte experimental de una estrategia
+alternativa a FedAvg con comportamiento correcto. FedAdam y FedAdagrad también
+completaron la ejecución, lo que demuestra que fue posible activar FedOpt con
+optimizadores de servidor Adam y Adagrad; sin embargo, sus métricas finales fueron
+claramente deficientes, con una precisión próxima al 10\,\% —equivalente al azar en
+un problema de diez clases— y pérdidas muy elevadas.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Resultados del mini-experimento de flexibilidad de FedML. Las cifras de
+  aprendizaje son auxiliares (dos rondas, una época, una semilla) y constituyen una
+  comprobación funcional, no una comparación de rendimiento entre estrategias.}
+  \label{tab:flex-fedml-resultados}
+  \begin{tabular}{llrrrrr}
+    \toprule
+    \textbf{Estrategia} & \textbf{Estado} & \textbf{Dur. (s)} & \textbf{Acc.} &
+    \textbf{Loss} & \textbf{GPU (MiB)} & \textbf{Util. (\%)} \\
+    \midrule
+    FedAvg     & success & 118 & 0,4301 & 1,5248   & 416 & 75,29 \\
+    FedProx    & success & 123 & 0,4260 & 1,5137   & 484 & 79,01 \\
+    FedAdam    & success & 117 & 0,0998 & 809,7697 & 416 & 76,09 \\
+    FedAdagrad & success & 116 & 0,0998 & 191,2948 & 416 & 76,85 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La lectura correcta de estos datos es que FedML permite cambiar la estrategia
+federada mediante configuración, pero que la mera disponibilidad de una estrategia
+no garantiza su estabilidad ni un buen rendimiento. Las variantes FedOpt
+ejecutaron de principio a fin, de modo que la flexibilidad queda demostrada, pero su
+falta de aprendizaje en esta prueba indica que requieren un ajuste específico de
+hiperparámetros —como la tasa de aprendizaje del servidor o un mayor número de
+rondas— para resultar competitivas. Este patrón es coherente con lo observado en los
+otros frameworks: en Flower las estrategias adaptativas divergían con los valores por
+defecto y exigieron ajustar \texttt{eta} y \texttt{tau}, y en NVIDIA FLARE FedAdam no
+llegó a completarse en GPU. La fragilidad de las variantes FedOpt con poca
+configuración es, por tanto, un comportamiento transversal y no una carencia
+particular de FedML.
+
+\subsection{Capacidades avanzadas según la documentación}\label{subsec:flex-fedml-doc}
+
+La documentación de FedML respalda una superficie de capacidades más amplia que la
+probada experimentalmente, organizada en varias capas. En el plano de uso, ofrece una
+interfaz de línea de comandos —integrada en la plataforma TensorOpera— con órdenes para
+autenticación y gestión de dispositivos (\texttt{fedml login}, \texttt{fedml device
+bind}), lanzamiento y gestión de trabajos y clústeres (\texttt{fedml launch},
+\texttt{fedml cluster}, \texttt{fedml run}), y gestión y despliegue de modelos como
+servicios de inferencia (\texttt{fedml model})~\parencite{fedmlExamples}. En el plano de
+programación, expone una API de Python con una llamada de una línea
+(\texttt{fedml.run\_simulation()}) y una API más explícita de varias líneas que
+inicializa dispositivo, datos y modelo y ejecuta la federación mediante
+\texttt{SimulatorMPI} o las clases \texttt{Client}/\texttt{Server} envueltas por
+\texttt{FedMLRunner}~\parencite{fedmlSimApi}.
+
+En cuanto al catálogo algorítmico, el simulador Parrot enumera implementaciones de
+referencia como FedOpt, FedNova, FedGKT, aprendizaje federado descentralizado, vertical
+y jerárquico, FedNAS y \textit{Split Learning}, seleccionables cambiando el campo
+\texttt{federated\_optimizer}~\parencite{fedmlSimOverview,fedmlSimApi}, y el módulo de
+seguridad declara compatibilidad con optimizadores como FedAvg, FedSGD, FedOpt, FedProx,
+FedGKT y FedNova~\parencite{fedmlSecurity}. A este catálogo se añaden la analítica
+federada, que calcula estadísticas distribuidas como promedios o percentiles mediante un
+ejecutor específico sin compartir datos crudos, y un proyecto independiente orientado al
+ajuste federado de grandes modelos de lenguaje, que reutiliza las mismas API y la
+plataforma de operaciones~\parencite{fedmlExamples}. En cuanto al aprendizaje asíncrono,
+FedML Octopus documenta un escenario jerárquico heterogéneo en el que cada silo puede
+ejecutar entrenamiento distribuido con varias GPU y orquestarse mediante optimización
+federada asíncrona o síncrona~\parencite{fedmlCrossSilo}; se trata, no obstante, de un
+soporte menos específico que el de NVIDIA FLARE, ya que no se documenta una receta directa
+equivalente a FedBuff, aprendizaje cíclico o \textit{swarm}.
+
+En privacidad y seguridad, el perfil de FedML difiere del de NVIDIA FLARE. Su
+fortaleza documental está en la simulación de ataques y defensas mediante
+\texttt{FedMLAttacker} y \texttt{FedMLDefender}, con ataques de tipo bizantino,
+\textit{label flipping} y reemplazo de modelo, y defensas como recorte de norma, Krum,
+mediana geométrica o FoolsGold, activables desde el fichero de configuración con
+\texttt{enable\_attack} y \texttt{enable\_defense}~\parencite{fedmlSecurity}, además de un
+ejemplo de agregación segura basada en computación multiparte~\parencite{fedmlExamples}.
+En cambio, en las páginas revisadas no figura una integración de privacidad diferencial o
+cifrado homomórfico comparable a la de NVIDIA FLARE, por lo que su valoración en este
+criterio se sostiene en el \textit{benchmarking} de robustez más que en la privacidad
+criptográfica. Por último, para integración y trazabilidad, FedML documenta el registro
+de métricas, artefactos y modelos mediante \texttt{fedml.log()}, la captura automática de
+métricas de hardware y GPU, los backends de comunicación MPI, gRPC, PyTorch RPC y MQTT+S3,
+y la integración con la plataforma de operaciones de TensorOpera para gestionar agentes,
+experimentos y despliegues~\parencite{fedmlTracking,fedmlExamples}.
+
+\subsection{Limitaciones observadas}\label{subsec:flex-fedml-lim}
+
+La limitación más visible es que las variantes FedOpt finalizaron sin aprender bajo
+la configuración empleada, lo que confirma que su soporte es real pero condicionado a
+un ajuste de hiperparámetros que queda fuera del alcance de esta prueba de
+flexibilidad. A ello se añade el detalle de configuración del atributo \texttt{ci},
+que tuvo que fijarse manualmente para que FedOpt funcionara, y el hecho de que la
+prueba reducida de FedML emplea una configuración menor que la de los otros dos
+frameworks, por lo que sus métricas auxiliares no son directamente comparables. En
+cuanto a la ejecución, el modo concurrente de FedML mediante el backend MPI fue el
+único que llegó a completarse entre los tres frameworks, según se documenta en el
+capítulo de resultados de rendimiento, si bien se mostró sensible al consumo de
+memoria en las configuraciones más grandes.
+
+\subsection{Valoración de la flexibilidad de FedML}\label{subsec:flex-fedml-score}
+
+La Tabla~\ref{tab:flex-fedml-score} recoge la valoración de FedML sobre los criterios
+F1--F10, con el convenio ya aplicado a los otros frameworks. FedML obtiene la máxima
+puntuación en personalización del modelo y los datos (F1), del entrenamiento local
+(F2) y de la agregación (F3), respaldadas por la implementación de entrenador y
+agregador propios; en los algoritmos federados disponibles (F4), por haber ejecutado
+cuatro estrategias mediante configuración; en los modos de ejecución (F6), por ser el
+único framework cuyo modo concurrente se completó; y en integración (F7) y
+reproducibilidad (F10). El aprendizaje asíncrono (F5), la seguridad y privacidad (F8)
+y la modificación de la arquitectura federada (F9) reciben puntuación parcial por
+estar respaldados únicamente por la documentación.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la flexibilidad de FedML según los criterios F1--F10. El
+  tipo de evidencia distingue las capacidades ejecutadas en los experimentos de las
+  descritas en la documentación oficial.}
+  \label{tab:flex-fedml-score}
+  \begin{tabular}{clcl}
+    \toprule
+    \textbf{Criterio} & \textbf{Descripción} & \textbf{Punt.} & \textbf{Evidencia} \\
+    \midrule
+    F1  & Personalización del modelo y el dataset      & 2/2 & Exp.\ + documental \\
+    F2  & Personalización del entrenamiento local      & 2/2 & Exp.\ + documental \\
+    F3  & Estrategias de agregación personalizadas     & 2/2 & Experimental \\
+    F4  & Algoritmos federados disponibles             & 2/2 & Exp.\ + documental \\
+    F5  & Aprendizaje federado asíncrono               & 1/2 & Documental \\
+    F6  & Modos de ejecución y despliegue              & 2/2 & Exp.\ + documental \\
+    F7  & Integración con herramientas externas        & 2/2 & Exp.\ + documental \\
+    F8  & Seguridad, privacidad y extensiones          & 1/2 & Documental \\
+    F9  & Modificación de la arquitectura federada     & 1/2 & Documental \\
+    F10 & Reproducibilidad y configuración             & 2/2 & Exp.\ + documental \\
+    \midrule
+    \multicolumn{2}{r}{\textbf{Total}} & \multicolumn{2}{l}{\textbf{17/20}} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+En conjunto, FedML alcanza una valoración de flexibilidad de 17/20. Su mayor fortaleza
+experimental reside en la facilidad para sustituir componentes centrales del sistema
+—entrenador y agregador— mediante herencia, y en haber ejecutado el abanico más amplio
+de estrategias del estudio a través de la configuración. Su perfil documental es
+asimismo notable, con un catálogo extenso de algoritmos y escenarios y un soporte de
+seguridad orientado al benchmarking de ataques y defensas. Las cautelas son dos: las
+variantes FedOpt completaron la ejecución pero no aprendieron sin un ajuste
+adicional, y algunas capacidades avanzadas —asincronía, privacidad criptográfica y
+esquemas alternativos— solo se verificaron documentalmente.
+
+% =====================================================================
+%  SECCIÓN AÑADIDA: Comparativa de flexibilidad entre frameworks
+% =====================================================================
+
+\section{Comparativa de flexibilidad}\label{sec:flex-comparativa}
+
+Una vez evaluados los tres frameworks por separado, esta sección los contrasta sobre
+el mismo conjunto de criterios. La Tabla~\ref{tab:flex-comparativa} reúne las
+puntuaciones F1--F10 de Flower, NVIDIA FLARE y FedML. Los tres obtienen la misma
+valoración, 17/20, lo que confirma que las tres herramientas son, en lo esencial,
+comparablemente flexibles para el tipo de adaptaciones que exige este trabajo y que la
+diferenciación entre ellas debe buscarse, más que en la cifra global, en el perfil
+cualitativo de cada una.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparativa de la valoración de flexibilidad de los tres frameworks según
+  los criterios F1--F10 definidos en la metodología.}
+  \label{tab:flex-comparativa}
+  \begin{tabular}{clccc}
+    \toprule
+    \textbf{Criterio} & \textbf{Descripción} & \textbf{Flower} & \textbf{NVIDIA FLARE} & \textbf{FedML} \\
+    \midrule
+    F1  & Modelo y dataset                  & 2/2 & 2/2 & 2/2 \\
+    F2  & Entrenamiento local               & 2/2 & 2/2 & 2/2 \\
+    F3  & Agregación personalizada          & 2/2 & 2/2 & 2/2 \\
+    F4  & Algoritmos disponibles            & 2/2 & 2/2 & 2/2 \\
+    F5  & Aprendizaje asíncrono             & 1/2 & 1/2 & 1/2 \\
+    F6  & Modos de ejecución y despliegue   & 2/2 & 2/2 & 2/2 \\
+    F7  & Integración externa               & 2/2 & 2/2 & 2/2 \\
+    F8  & Seguridad y privacidad            & 1/2 & 1/2 & 1/2 \\
+    F9  & Arquitectura federada             & 1/2 & 1/2 & 1/2 \\
+    F10 & Reproducibilidad y configuración  & 2/2 & 2/2 & 2/2 \\
+    \midrule
+    \multicolumn{2}{r}{\textbf{Total}} & \textbf{17/20} & \textbf{17/20} & \textbf{17/20} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La coincidencia en los criterios experimentales (F1--F4, F6, F7 y F10) refleja un
+hecho de fondo: bajo un mismo escenario de modelo, datos y algoritmo base, los tres
+frameworks permitieron integrar la ResNet-18 sobre CIFAR-10, editar el entrenamiento
+local, sustituir la estrategia de agregación, registrar métricas y reproducir los
+experimentos mediante ficheros y scripts. La igualdad también alcanza a los tres
+criterios documentales: ninguno validó experimentalmente el aprendizaje asíncrono (F5),
+la seguridad avanzada (F8) ni esquemas alternativos a la arquitectura clásica (F9), pero
+los tres los documentan, por lo que reciben idéntica puntuación parcial. En F5, en
+concreto, los tres declaran soporte —Flower mediante la \textit{Driver API} y
+\textit{Flower Next}, NVIDIA FLARE mediante FedBuff en el borde y FedML en su escenario
+jerárquico cross-silo—, si bien en todos los casos se trata de capacidades
+experimentales, limitadas a entornos concretos o de bajo nivel.
+
+Más allá de las cifras, el estudio revela un comportamiento transversal en las
+estrategias adaptativas de la familia FedOpt. En los tres frameworks fue posible
+configurar FedAdam y FedAdagrad, pero su ejecución resultó frágil con poca
+configuración: en Flower divergían con los valores por defecto y necesitaron ajustar
+la tasa del servidor y el factor de adaptabilidad; en NVIDIA FLARE, FedAdam no llegó a
+completarse en GPU por un error de CUDA; y en FedML, FedAdam y FedAdagrad finalizaron
+pero sin aprender. La conclusión es clara y común: la disponibilidad de una estrategia
+no equivale a su estabilidad, que depende de un ajuste deliberado de hiperparámetros,
+especialmente con pocas rondas.
+
+Por último, cada framework muestra un perfil de flexibilidad propio que la puntuación,
+por su granularidad, no captura del todo. Flower es el más directo para sustituir la
+estrategia de agregación —basta con cambiar una clase en el servidor— y su documentación
+revela una superficie amplia que abarca \textit{Mods}, privacidad diferencial, FedBN y,
+sobre todo, un modelo de despliegue muy desarrollado hacia la nube (Google Cloud, Azure,
+OpenShift e interconexión de clústeres); su contrapartida es que el soporte asíncrono
+sigue siendo experimental y que el backend Ray arrastra una huella de memoria elevada.
+NVIDIA FLARE ofrece la mayor profundidad en seguridad y privacidad —filtros de privacidad
+diferencial, cifrado homomórfico y computación confidencial sobre entornos de ejecución
+confiables— junto con un catálogo de recetas y entornos (\texttt{SimEnv}, \texttt{PocEnv},
+\texttt{ProdEnv}) orientado a producción, a costa de una complejidad de configuración
+mayor, pues alterar la agregación exige intervenir en componentes del servidor. FedML
+destaca por la sustitución de entrenador y agregador mediante herencia, por haber
+ejecutado el mayor número de estrategias, por ser el único cuyo modo concurrente se
+completó, y por una integración estrecha con su plataforma de operaciones y la analítica
+federada, con un soporte de seguridad orientado al \textit{benchmarking} de ataques y
+defensas. La elección entre ellos, en términos de flexibilidad, depende por tanto de la
+prioridad del proyecto: la simplicidad y el despliegue en la nube de Flower, la
+profundidad en seguridad y la orientación a producción de NVIDIA FLARE, o la
+extensibilidad por componentes y la experimentación algorítmica de FedML.

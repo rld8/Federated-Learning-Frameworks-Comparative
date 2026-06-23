@@ -1,0 +1,1015 @@
+%% eps-tfg.cls
+%% Clase principal para TFG/TFM de la Escuela Politécnica Superior (UA)
+%%
+%% Proyecto: Plantilla TFG/TFM EPS Universidad de Alicante
+%% Autor:    José Manuel Requena Plens
+%% Enlace:   https://github.com/jmrplens/TFG-TFM_EPS
+%% Licencia: GNU GPL v3.0
+%% Versión:  2.1.0 (2026/02/05)
+%%
+%% -----------------------------------------------------------------------------
+\NeedsTeXFormat{LaTeX2e}[2022/06/01]
+\ProvidesClass{eps-tfg}[2026/02/05 v2.1.0 Clase TFG/TFM EPS Universidad de Alicante]
+
+%% ============================================================================
+%% ARQUITECTURA DE LA CLASE
+%% ============================================================================
+%% Esta clase se basa en 'scrbook' (KOMA-Script) y utiliza 'expl3' para la
+%% gestión de variables y lógica interna.
+%%
+%% Estructura principal:
+%% 1. Carga de expl3 y xparse para definiciones modernas.
+%% 2. Definición de variables globales (prefijo g__eps_).
+%% 3. Base de datos de titulaciones (Property List):
+%%    Almacena colores, logos y textos específicos de cada grado/máster.
+%% 4. Interfaz de usuario (\EPSsetup):
+%%    Permite configurar el documento mediante pares clave-valor.
+%% 5. Configuración de KOMA-Script y paquetes base (geometría, fuentes, idioma).
+%% 6. Definición de comandos de portada y metadatos.
+%%
+%% Las variables internas siguen la convención de nombres de LaTeX3:
+%% \g__eps_nombre_tipo (g=global, eps=módulo, tipo=tl/bool/prop/...)
+%% ============================================================================
+
+%% ============================================================================
+%% CONFIGURACIÓN EXPL3
+%% ============================================================================
+% tracklang para datatool y glossaries
+\PassOptionsToPackage{spanish}{tracklang}
+
+\RequirePackage{expl3}
+\RequirePackage{xparse}
+\RequirePackage{l3keys2e}
+
+\ExplSyntaxOn
+
+%% ============================================================================
+%% VARIABLES INTERNAS
+%% ============================================================================
+
+% Información del documento
+\tl_new:N \g__eps_titulo_tl
+\tl_new:N \g__eps_subtitulo_tl
+\tl_new:N \g__eps_autor_tl
+\tl_new:N \g__eps_autor_genero_tl
+\tl_new:N \g__eps_autor_email_tl
+\tl_new:N \g__eps_tutor_tl
+\tl_new:N \g__eps_tutor_dpto_tl
+\tl_new:N \g__eps_cotutor_tl
+\tl_new:N \g__eps_cotutor_dpto_tl
+\tl_new:N \g__eps_fecha_tl
+\tl_new:N \g__eps_facultad_tl
+\tl_new:N \g__eps_facultad_corto_tl
+\tl_new:N \g__eps_universidad_tl
+\tl_new:N \g__eps_ubicacion_tl
+
+% Configuración de titulación
+\tl_new:N \g__eps_titulacion_tl
+\tl_new:N \g__eps_titulacion_nombre_tl
+\tl_new:N \g__eps_tipo_trabajo_tl
+\tl_new:N \g__eps_color_grado_tl
+\tl_new:N \g__eps_color_texto_tl
+
+% Rutas de logos
+\tl_new:N \g__eps_logo_facultad_tl
+\tl_new:N \g__eps_logo_facultad_portada_tl
+\tl_new:N \g__eps_logo_universidad_tl
+\tl_new:N \g__eps_logo_universidad_portada_tl
+\tl_new:N \g__eps_logo_grado_tl
+\tl_new:N \g__eps_logo_grado_portada_tl
+
+% Opciones booleanas
+\bool_new:N \g__eps_optimizar_tikz_bool
+\bool_new:N \g__eps_borrador_bool
+
+% Idioma del documento
+\tl_new:N \g__eps_idioma_tl
+\tl_new:N \g__eps_idioma_polyglossia_tl
+\tl_new:N \g__eps_idioma_codigo_tl
+\tl_new:N \g__eps_idioma_biblatex_tl
+
+% Establecer valores por defecto
+\tl_gset:Nn \g__eps_facultad_tl {Escuela~Politécnica~Superior}
+\tl_gset:Nn \g__eps_facultad_corto_tl {EPS~UA}
+\tl_gset:Nn \g__eps_universidad_tl {Universidad~de~Alicante}
+\tl_gset:Nn \g__eps_ubicacion_tl {Alicante}
+\tl_gset:Nn \g__eps_autor_genero_tl {m}
+\bool_gset_true:N \g__eps_optimizar_tikz_bool
+% Idioma por defecto: español
+\tl_gset:Nn \g__eps_idioma_tl {espanol}
+\tl_gset:Nn \g__eps_idioma_polyglossia_tl {spanish}
+\tl_gset:Nn \g__eps_idioma_codigo_tl {es-ES}
+\tl_gset:Nn \g__eps_idioma_biblatex_tl {spanish}
+
+%% ============================================================================
+%% BASE DE DATOS DE TITULACIONES
+%% ============================================================================
+
+% Property list para almacenar datos de titulaciones
+\prop_new:N \g__eps_titulaciones_prop
+
+% Comando para definir una titulación
+\cs_new_protected:Nn \__eps_define_titulacion:nnnnnnn
+  {
+    % #1 = id
+    % #2 = nombre completo
+    % #3 = tipo (tfg/tfm)
+    % #4 = color grado
+    % #5 = color texto (blanco/negro)
+    % #6 = logo variante portada (Blanco/Negro/Color)
+    % #7 = logo variante normal (normalmente Negro)
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / nombre } { #2 }
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / tipo } { #3 }
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / color } { #4 }
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / texto } { #5 }
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / logo-portada } { #6 }
+    \prop_gput:Nnn \g__eps_titulaciones_prop { #1 / logo-normal } { #7 }
+  }
+
+%% --- GRADOS ---
+\__eps_define_titulacion:nnnnnnn {teleco}
+  {Grado~en~Ingeniería~en~Sonido~e~Imagen~en~Telecomunicación}
+  {tfg} {teleco} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {civil}
+  {Grado~en~Ingeniería~Civil}
+  {tfg} {civil} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {quimica}
+  {Grado~en~Ingeniería~Química}
+  {tfg} {quimica} {negro} {Negro} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {informatica}
+  {Grado~en~Ingeniería~Informática}
+  {tfg} {informatica} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {multimedia}
+  {Grado~en~Ingeniería~Multimedia}
+  {tfg} {multimedia} {negro} {Negro} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {arquitectura-tecnica}
+  {Grado~en~Arquitectura~Técnica}
+  {tfg} {arquitecnica} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {arquitectura}
+  {Grado~en~Arquitectura}
+  {tfg} {arquitectura} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {robotica}
+  {Grado~en~Ingeniería~Robótica}
+  {tfg} {robotica} {negro} {Color} {Negro}
+
+%% --- MÁSTERES ---
+\__eps_define_titulacion:nnnnnnn {master-teleco}
+  {Máster~Universitario~en~Ingeniería~de~Telecomunicación}
+  {tfm} {masterteleco} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-caminos}
+  {Máster~Universitario~en~Ingeniería~de~Caminos,~Canales~y~Puertos}
+  {tfm} {caminos} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-edificacion}
+  {Máster~Universitario~en~Gestión~de~la~Edificación}
+  {tfm} {gestedif} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-web}
+  {Máster~Universitario~en~Desarrollo~de~Aplicaciones~y~Servicios~Web}
+  {tfm} {desweb} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-materiales}
+  {Máster~Universitario~en~Ingeniería~de~los~Materiales,~del~Agua~y~del~Terreno}
+  {tfm} {mataguaterre} {negro} {Negro} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-informatica}
+  {Máster~Universitario~en~Ingeniería~Informática}
+  {tfm} {masterinfor} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-robotica}
+  {Máster~Universitario~en~Automática~y~Robótica}
+  {tfm} {autorobo} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-prevencion}
+  {Máster~Universitario~en~Prevención~de~Riesgos~Laborales}
+  {tfm} {prevencion} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-agua}
+  {Máster~Universitario~en~Gestión~Sostenible~y~Tecnologías~del~Agua}
+  {tfm} {gestionagua} {negro} {Negro} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-moviles}
+  {Máster~Universitario~en~Desarrollo~de~Software~para~Dispositivos~Móviles}
+  {tfm} {moviles} {blanco} {Blanco} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-quimica}
+  {Máster~Universitario~en~Ingeniería~Química}
+  {tfm} {masterquimica} {negro} {Negro} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-ciberseguridad}
+  {Máster~Universitario~en~Ciberseguridad}
+  {tfm} {ciberseguridad} {blanco} {Color} {Negro}
+
+\__eps_define_titulacion:nnnnnnn {master-geologica}
+  {Máster~Universitario~en~Ingeniería~Geológica}
+  {tfm} {geologica} {blanco} {Color} {Negro}
+
+%% ============================================================================
+%% MAPEO DE LOGOS POR TITULACIÓN
+%% ============================================================================
+\prop_new:N \g__eps_logos_map_prop
+
+% Grados
+\prop_gput:Nnn \g__eps_logos_map_prop {teleco} {LogoTeleco}
+\prop_gput:Nnn \g__eps_logos_map_prop {civil} {LogoCivil}
+\prop_gput:Nnn \g__eps_logos_map_prop {quimica} {LogoQuimica}
+\prop_gput:Nnn \g__eps_logos_map_prop {informatica} {LogoInformatica}
+\prop_gput:Nnn \g__eps_logos_map_prop {multimedia} {LogoMultimedia}
+\prop_gput:Nnn \g__eps_logos_map_prop {arquitectura-tecnica} {LogoArqTecnica}
+\prop_gput:Nnn \g__eps_logos_map_prop {arquitectura} {LogoArquitectura}
+\prop_gput:Nnn \g__eps_logos_map_prop {robotica} {LogoRobotica}
+
+% Másteres
+\prop_gput:Nnn \g__eps_logos_map_prop {master-teleco} {LogoTeleco}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-caminos} {LogoCivil}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-edificacion} {LogoMasterEdificacion}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-web} {LogoMasterDesarrollo}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-materiales} {LogoMasterMateriales}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-informatica} {LogoInformatica}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-robotica} {LogoMasterRobotica}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-prevencion} {LogoMasterPrevencion}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-agua} {LogoMasterAgua}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-moviles} {LogoMasterMoviles}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-quimica} {LogoQuimica}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-ciberseguridad} {LogoMasterCiberseguridad}
+\prop_gput:Nnn \g__eps_logos_map_prop {master-geologica} {LogoMasterGeologica}
+
+%% ============================================================================
+%% FUNCIÓN PARA CONFIGURAR TITULACIÓN
+%% ============================================================================
+\cs_new_protected:Nn \__eps_setup_titulacion:n
+  {
+    \tl_gset:Nn \g__eps_titulacion_tl { #1 }
+
+    % Obtener datos de la prop list
+    \prop_get:NnNTF \g__eps_titulaciones_prop { #1 / nombre } \l_tmpa_tl
+      {
+        \tl_gset_eq:NN \g__eps_titulacion_nombre_tl \l_tmpa_tl
+      }
+      {
+        \msg_error:nnn { eps-tfg } { titulacion-desconocida } { #1 }
+      }
+
+    \prop_get:NnN \g__eps_titulaciones_prop { #1 / tipo } \l_tmpa_tl
+    \str_case:VnF \l_tmpa_tl
+      {
+        {tfg} { \tl_gset:Nn \g__eps_tipo_trabajo_tl {Trabajo~Fin~de~Grado} }
+        {tfm} { \tl_gset:Nn \g__eps_tipo_trabajo_tl {Trabajo~Fin~de~Máster} }
+      }
+      {
+        \tl_gset:Nn \g__eps_tipo_trabajo_tl {Trabajo~Fin~de~Estudios}
+      }
+
+    \prop_get:NnN \g__eps_titulaciones_prop { #1 / color } \l_tmpa_tl
+    \tl_gset_eq:NN \g__eps_color_grado_tl \l_tmpa_tl
+
+    \prop_get:NnN \g__eps_titulaciones_prop { #1 / texto } \l_tmpa_tl
+    \tl_gset_eq:NN \g__eps_color_texto_tl \l_tmpa_tl
+
+    % Configurar logos
+    \prop_get:NnN \g__eps_logos_map_prop { #1 } \l_tmpb_tl
+    \prop_get:NnN \g__eps_titulaciones_prop { #1 / logo-portada } \l_tmpa_tl
+    \tl_gset:Nx \g__eps_logo_grado_portada_tl
+      { recursos/logos/titulaciones/ \l_tmpb_tl \l_tmpa_tl .pdf }
+
+    \prop_get:NnN \g__eps_titulaciones_prop { #1 / logo-normal } \l_tmpa_tl
+    \tl_gset:Nx \g__eps_logo_grado_tl
+      { recursos/logos/titulaciones/ \l_tmpb_tl \l_tmpa_tl .pdf }
+
+    % Logo facultad según color de texto
+    \str_case:VnF \g__eps_color_texto_tl
+      {
+        {blanco} {
+          \tl_gset:Nn \g__eps_logo_facultad_portada_tl {recursos/logos/universidad/LogoEPSBlanco.pdf}
+        }
+        {negro} {
+          \tl_gset:Nn \g__eps_logo_facultad_portada_tl {recursos/logos/universidad/LogoEPSNegro.pdf}
+        }
+      }
+      {
+        \tl_gset:Nn \g__eps_logo_facultad_portada_tl {recursos/logos/universidad/LogoEPSBlanco.pdf}
+      }
+  }
+
+%% ============================================================================
+%% FUNCIÓN PARA CONFIGURAR IDIOMA
+%% ============================================================================
+\cs_new_protected:Nn \__eps_setup_idioma:n
+  {
+    \tl_gset:Nn \g__eps_idioma_tl { #1 }
+    \str_case:nnF { #1 }
+      {
+        {espanol} {
+          \tl_gset:Nn \g__eps_idioma_polyglossia_tl {spanish}
+          \tl_gset:Nn \g__eps_idioma_codigo_tl {es-ES}
+          \tl_gset:Nn \g__eps_idioma_biblatex_tl {spanish}
+        }
+        {valenciano} {
+          \tl_gset:Nn \g__eps_idioma_polyglossia_tl {catalan}
+          \tl_gset:Nn \g__eps_idioma_codigo_tl {ca-ES}
+          \tl_gset:Nn \g__eps_idioma_biblatex_tl {catalan}
+        }
+        {ingles} {
+          \tl_gset:Nn \g__eps_idioma_polyglossia_tl {english}
+          \tl_gset:Nn \g__eps_idioma_codigo_tl {en-GB}
+          \tl_gset:Nn \g__eps_idioma_biblatex_tl {english}
+        }
+      }
+      {
+        \msg_error:nnn { eps-tfg } { idioma-desconocido } { #1 }
+      }
+  }
+
+%% ============================================================================
+%% MENSAJES DE ERROR
+%% ============================================================================
+\msg_new:nnn { eps-tfg } { titulacion-desconocida }
+  {
+    La~titulación~'#1'~no~está~definida.~
+    Consulta~la~documentación~para~ver~las~titulaciones~disponibles.
+  }
+
+\msg_new:nnn { eps-tfg } { idioma-desconocido }
+  {
+    El~idioma~'#1'~no~está~soportado.~
+    Valores~válidos:~espanol,~valenciano,~ingles.
+  }
+
+\msg_new:nnn { eps-tfg } { campo-requerido }
+  {
+    El~campo~'#1'~es~obligatorio.~
+    Usa~\token_to_str:N \EPSsetup \{#1~=~...\}~para~definirlo.
+  }
+
+%% ============================================================================
+%% INTERFAZ DE USUARIO: \EPSsetup
+%% ============================================================================
+\keys_define:nn { eps-tfg }
+  {
+    % Información del documento
+    titulo .tl_gset:N = \g__eps_titulo_tl,
+    titulo .value_required:n = true,
+
+    subtitulo .tl_gset:N = \g__eps_subtitulo_tl,
+
+    autor .tl_gset:N = \g__eps_autor_tl,
+    autor .value_required:n = true,
+
+    genero .tl_gset:N = \g__eps_autor_genero_tl,
+    genero .initial:n = {m},
+
+    email .tl_gset:N = \g__eps_autor_email_tl,
+
+    tutor .tl_gset:N = \g__eps_tutor_tl,
+    tutor .value_required:n = true,
+
+    tutor-genero .tl_gset:N = \g__eps_tutor_genero_tl,
+    tutor-genero .initial:n = {m},
+
+    tutor-departamento .tl_gset:N = \g__eps_tutor_dpto_tl,
+
+    cotutor .tl_gset:N = \g__eps_cotutor_tl,
+
+    cotutor-genero .tl_gset:N = \g__eps_cotutor_genero_tl,
+    cotutor-genero .initial:n = {m},
+
+    cotutor-departamento .tl_gset:N = \g__eps_cotutor_dpto_tl,
+
+    fecha .tl_gset:N = \g__eps_fecha_tl,
+
+    % Configuración institucional
+    facultad .tl_gset:N = \g__eps_facultad_tl,
+    facultad .initial:n = {Escuela~Politécnica~Superior},
+
+    universidad .tl_gset:N = \g__eps_universidad_tl,
+    universidad .initial:n = {Universidad~de~Alicante},
+
+    ubicacion .tl_gset:N = \g__eps_ubicacion_tl,
+    ubicacion .initial:n = {Alicante},
+
+    % Titulación
+    titulacion .code:n = { \__eps_setup_titulacion:n { #1 } },
+    titulacion .value_required:n = true,
+
+    % Opciones
+    optimizar-tikz .bool_gset:N = \g__eps_optimizar_tikz_bool,
+    optimizar-tikz .default:n = true,
+    optimizar-tikz .initial:n = true,
+
+    borrador .bool_gset:N = \g__eps_borrador_bool,
+    borrador .default:n = true,
+    borrador .initial:n = false,
+
+    % Idioma del documento (espanol, valenciano, ingles)
+    idioma .code:n = { \__eps_setup_idioma:n { #1 } },
+    idioma .initial:n = {espanol},
+  }
+
+% +m permite párrafos (líneas en blanco) dentro del argumento
+% Limpiamos los \par antes de procesar
+\NewDocumentCommand{\EPSsetup}{ +m }
+  {
+    \tl_set:Nn \l_tmpa_tl { #1 }
+    \regex_replace_all:nnN { \c{par} } { } \l_tmpa_tl
+    \keys_set:nV { eps-tfg } \l_tmpa_tl
+  }
+
+%% ============================================================================
+%% COMANDOS DE ACCESO A VARIABLES (para usar en el documento)
+%% ============================================================================
+% Usamos \tl_use:N para asegurar la expansión correcta
+\NewExpandableDocumentCommand{\EPStitulo}{}{\tl_use:N \g__eps_titulo_tl}
+\NewExpandableDocumentCommand{\EPSsubtitulo}{}{\tl_use:N \g__eps_subtitulo_tl}
+\NewExpandableDocumentCommand{\EPSautor}{}{\tl_use:N \g__eps_autor_tl}
+\NewExpandableDocumentCommand{\EPSautorEmail}{}{\tl_use:N \g__eps_autor_email_tl}
+\NewExpandableDocumentCommand{\EPStutor}{}{\tl_use:N \g__eps_tutor_tl}
+\NewExpandableDocumentCommand{\EPStutorDpto}{}{\tl_use:N \g__eps_tutor_dpto_tl}
+\NewExpandableDocumentCommand{\EPScotutor}{}{\tl_use:N \g__eps_cotutor_tl}
+\NewExpandableDocumentCommand{\EPScotutorDpto}{}{\tl_use:N \g__eps_cotutor_dpto_tl}
+\NewExpandableDocumentCommand{\EPSfacultad}{}{\tl_use:N \g__eps_facultad_tl}
+\NewExpandableDocumentCommand{\EPSuniversidad}{}{\tl_use:N \g__eps_universidad_tl}
+\NewExpandableDocumentCommand{\EPSubicacion}{}{\tl_use:N \g__eps_ubicacion_tl}
+\NewExpandableDocumentCommand{\EPStitulacion}{}{\tl_use:N \g__eps_titulacion_nombre_tl}
+\NewExpandableDocumentCommand{\EPStipoTrabajo}{}{\tl_use:N \g__eps_tipo_trabajo_tl}
+\NewExpandableDocumentCommand{\EPScolorGrado}{}{\tl_use:N \g__eps_color_grado_tl}
+\NewExpandableDocumentCommand{\EPScolorTexto}{}{\tl_use:N \g__eps_color_texto_tl}
+\NewExpandableDocumentCommand{\EPSlogoGrado}{}{\tl_use:N \g__eps_logo_grado_tl}
+\NewExpandableDocumentCommand{\EPSlogoGradoPortada}{}{\tl_use:N \g__eps_logo_grado_portada_tl}
+\NewExpandableDocumentCommand{\EPSlogoFacultadPortada}{}{\tl_use:N \g__eps_logo_facultad_portada_tl}
+\NewExpandableDocumentCommand{\EPSidioma}{}{\tl_use:N \g__eps_idioma_tl}
+\NewExpandableDocumentCommand{\EPSidiomaCodigo}{}{\tl_use:N \g__eps_idioma_codigo_tl}
+\NewExpandableDocumentCommand{\EPSidiomaBiblatex}{}{\tl_use:N \g__eps_idioma_biblatex_tl}
+
+% Comando para obtener la fecha formateada
+\NewDocumentCommand{\EPSfecha}{}
+  {
+    \tl_if_empty:NTF \g__eps_fecha_tl
+      { \__eps_fecha_actual: }
+      { \g__eps_fecha_tl }
+  }
+
+% Generar fecha actual
+\cs_new_protected:Nn \__eps_fecha_actual:
+  {
+    \int_case:nn { \month }
+      {
+        {1}  {Enero}
+        {2}  {Febrero}
+        {3}  {Marzo}
+        {4}  {Abril}
+        {5}  {Mayo}
+        {6}  {Junio}
+        {7}  {Julio}
+        {8}  {Agosto}
+        {9}  {Septiembre}
+        {10} {Octubre}
+        {11} {Noviembre}
+        {12} {Diciembre}
+      }
+    \c_space_tl
+    \int_use:N \year
+  }
+
+% Comando para verificar si hay cotutor
+\NewDocumentCommand{\EPSsiCotutor}{ m m }
+  {
+    \tl_if_empty:NTF \g__eps_cotutor_tl { #2 } { #1 }
+  }
+
+% Comando para obtener etiqueta de autor según género (m=masculino, f=femenino, n=neutro)
+\NewDocumentCommand{\EPSetiquetaAutor}{}
+  {
+    \str_case:VnF \g__eps_autor_genero_tl
+      {
+        {f} {Autora}
+        {m} {Autor}
+        {n} {Autoría}
+      }
+      {Autoría}
+  }
+
+% Comando para obtener etiqueta de tutor según género (m=masculino, f=femenino, n=neutro)
+\NewDocumentCommand{\EPSetiquetaTutor}{}
+  {
+    \tl_if_empty:NTF \g__eps_cotutor_tl
+      {
+        % Solo tutor principal
+        \str_case:VnF \g__eps_tutor_genero_tl
+          {
+            {f} {Tutora}
+            {m} {Tutor}
+          }
+          {Tutoría}
+      }
+      {
+        % Hay cotutor - concatenamos géneros en variable temporal
+        \tl_set:Nx \l_tmpa_tl { \g__eps_tutor_genero_tl \g__eps_cotutor_genero_tl }
+        \str_case:VnF \l_tmpa_tl
+          {
+            {mm} {Tutores}
+            {mf} {Tutores}
+            {fm} {Tutores}
+            {ff} {Tutoras}
+          }
+          {Tutorías}
+      }
+  }
+
+\ExplSyntaxOff
+
+%% ============================================================================
+%% OPCIONES DE CLASE
+%% ============================================================================
+\DeclareOption{borrador}{%
+  \ExplSyntaxOn
+  \bool_gset_true:N \g__eps_borrador_bool
+  \ExplSyntaxOff
+}
+
+\DeclareOption{final}{%
+  \ExplSyntaxOn
+  \bool_gset_false:N \g__eps_borrador_bool
+  \ExplSyntaxOff
+}
+
+\DeclareOption*{\PassOptionsToClass{\CurrentOption}{scrbook}}
+\ProcessOptions\relax
+
+%% ============================================================================
+%% CLASE BASE
+%% ============================================================================
+\LoadClass[
+  a4paper,
+  11pt,
+  titlepage,
+  twoside=semi,
+  headings=normal
+]{scrbook}
+
+%% ============================================================================
+%% CONFIGURACIÓN KOMA-SCRIPT
+%% ============================================================================
+\KOMAoption{toc}{bib,chapterentryfill}
+
+%% ============================================================================
+%% PAQUETES FUNDAMENTALES
+%% ============================================================================
+
+% Previene errores con KOMA-Script
+\RequirePackage{scrhack}
+
+% Cabeceras y pies de página
+\RequirePackage[automark,headsepline,footsepline]{scrlayer-scrpage}
+\clearpairofpagestyles
+\ihead{{\color{gray30}\scshape\small\headmark}}
+\ohead{\normalfont\pagemark}
+\ofoot[\normalfont\pagemark]{}
+
+\renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{\markright{\thesection. #1}}
+\setkomafont{pagenumber}{}
+
+% Profundidad del índice
+\setcounter{tocdepth}{4}
+\setcounter{secnumdepth}{4}
+
+%% ============================================================================
+%% MÁRGENES Y GEOMETRÍA
+%% ============================================================================
+\RequirePackage[
+  inner   = 3.0cm,
+  outer   = 2.5cm,
+  top     = 2.5cm,
+  bottom  = 2.5cm,
+  includeheadfoot,
+  marginparwidth = 2cm,  % Necesario para todonotes
+]{geometry}
+
+% Interlineado
+\renewcommand{\baselinestretch}{1.0}
+
+% Páginas horizontales
+\RequirePackage{pdflscape}
+
+%% ============================================================================
+%% SOPORTE PARA PÁGINAS LANDSCAPE CON HEADERS CORRECTOS
+%% ============================================================================
+% Comando para iniciar sección landscape con headers correctos
+% Usa las primitivas de LuaTeX para cambiar las dimensiones de la página
+% y geometry con layoutwidth/layoutheight para calcular textwidth correcto
+\NewDocumentCommand{\BeginLandscapePage}{O{2cm}}{%
+  \clearpage
+  % Cambiar dimensiones de la página PDF (LuaTeX primitives)
+  \pagewidth=297mm  % A4 landscape width
+  \pageheight=210mm % A4 landscape height
+  % Aplicar nuevos márgenes Y layout para landscape
+  % layoutwidth/layoutheight fuerzan a geometry a recalcular textwidth
+  \newgeometry{%
+    layoutwidth=297mm,
+    layoutheight=210mm,
+    left=#1,
+    right=#1,
+    top=#1,
+    bottom=#1,
+    includeheadfoot,
+    headheight=14pt,
+    headsep=1cm,
+    footskip=1.5cm
+  }%
+  % Actualizar anchos de header/footer al nuevo textwidth con offset 0
+  \KOMAoptions{paper=landscape, headwidth=\textwidth:0pt, footwidth=\textwidth:0pt}%
+}
+
+% Comando para restaurar orientación portrait
+\NewDocumentCommand{\EndLandscapePage}{}{%
+  \clearpage
+  % Restaurar dimensiones de la página PDF (A4 portrait)
+  \pagewidth=210mm
+  \pageheight=297mm
+  % Restaurar márgenes
+  \restoregeometry
+  % Restaurar anchos de header/footer con offset 0
+  \KOMAoptions{paper=portrait, headwidth=\textwidth:0pt, footwidth=\textwidth:0pt}%
+}
+
+%% ============================================================================
+%% IDIOMA (POLYGLOSSIA PARA LUALATEX)
+%% ============================================================================
+\RequirePackage{polyglossia}
+
+% Cargar todos los idiomas soportados (el predeterminado se selecciona en AtBeginDocument)
+\setdefaultlanguage{spanish}
+\setotherlanguage{english}
+\setotherlanguage{catalan}
+
+% Redefinir nombres para español
+\gappto\captionsspanish{%
+  \renewcommand{\listtablename}{Índice de tablas}
+  \renewcommand{\tablename}{Tabla}
+  \renewcommand{\glossaryname}{Glosario}
+  \renewcommand{\acronymname}{Acrónimos}
+  \renewcommand{\bibname}{Bibliografía}
+}
+
+% Redefinir nombres para valenciano/catalán
+\gappto\captionscatalan{%
+  \renewcommand{\listtablename}{Índex de taules}
+  \renewcommand{\tablename}{Taula}
+  \renewcommand{\glossaryname}{Glossari}
+  \renewcommand{\acronymname}{Acrònims}
+  \renewcommand{\bibname}{Bibliografia}
+  \renewcommand{\contentsname}{Índex}
+  \renewcommand{\listfigurename}{Índex de figures}
+  \renewcommand{\figurename}{Figura}
+  \renewcommand{\chaptername}{Capítol}
+  \renewcommand{\appendixname}{Apèndix}
+}
+
+% Redefinir nombres para inglés
+\gappto\captionsenglish{%
+  \renewcommand{\listtablename}{List of Tables}
+  \renewcommand{\tablename}{Table}
+  \renewcommand{\glossaryname}{Glossary}
+  \renewcommand{\acronymname}{Acronyms}
+  \renewcommand{\bibname}{Bibliography}
+}
+
+%% ============================================================================
+%% FUENTES (FONTSPEC PARA LUALATEX)
+%% ============================================================================
+\RequirePackage{fontspec}
+
+% Fuente monoespaciada con soporte Unicode completo (para caracteres de caja)
+\IfFontExistsTF{DejaVu Sans Mono}{%
+  \setmonofont{DejaVu Sans Mono}[Scale=0.9]%
+}{%
+  \IfFontExistsTF{Noto Sans Mono}{%
+    \setmonofont{Noto Sans Mono}[Scale=0.9]%
+  }{% Latin Modern Mono por defecto (no soporta caracteres de caja)
+  }%
+}
+
+%% ============================================================================
+%% COLORES
+%% ============================================================================
+\RequirePackage[dvipsnames,svgnames,x11names]{xcolor}
+
+% Colores básicos
+\definecolor{gray97}{gray}{.97}
+\definecolor{gray75}{gray}{.75}
+\definecolor{gray45}{gray}{.45}
+\definecolor{gray30}{gray}{.30}
+\definecolor{negro}{RGB}{0,0,0}
+\definecolor{blanco}{RGB}{255,255,255}
+
+% Colores de grados
+\definecolor{teleco}{RGB}{32,2,116}
+\definecolor{civil}{RGB}{201,56,140}
+\definecolor{quimica}{RGB}{41,199,255}
+\definecolor{informatica}{RGB}{0,128,255}
+\definecolor{multimedia}{RGB}{239,206,53}
+\definecolor{arquitecnica}{RGB}{0,179,148}
+\definecolor{arquitectura}{RGB}{181,0,0}
+\definecolor{robotica}{RGB}{255,255,128}
+
+% Colores de másteres
+\definecolor{masterteleco}{RGB}{32,2,116}
+\definecolor{caminos}{RGB}{201,56,140}
+\definecolor{gestedif}{RGB}{50,120,50}
+\definecolor{desweb}{RGB}{250,43,22}
+\definecolor{mataguaterre}{RGB}{210,250,50}
+\definecolor{masterinfor}{RGB}{0,128,255}
+\definecolor{autorobo}{RGB}{83,145,201}
+\definecolor{prevencion}{RGB}{0,100,0}
+\definecolor{gestionagua}{RGB}{7,138,197}
+\definecolor{moviles}{RGB}{121,11,21}
+\definecolor{masterquimica}{RGB}{41,199,255}
+\definecolor{ciberseguridad}{RGB}{9,111,192}
+\definecolor{geologica}{RGB}{245,125,0}
+
+% Colores para código
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{codeblue}{rgb}{0.13,0.13,1}
+\definecolor{codered}{rgb}{0.6,0,0}
+\definecolor{codeorange}{rgb}{0.9,0.4,0}
+\definecolor{backcolour}{rgb}{0.97,0.97,0.97}
+
+%% ============================================================================
+%% BIBLIOGRAFÍA (BIBLATEX + BIBER)
+%% ============================================================================
+\RequirePackage[
+  backend=biber,
+  style=apa,
+  sorting=nyt,
+  natbib=true,
+  language=spanish,
+  url=true,
+  doi=true,
+  eprint=false
+]{biblatex}
+
+% Configuración de idioma para biblatex
+\DeclareLanguageMapping{spanish}{spanish-apa}
+
+%% ============================================================================
+%% GRÁFICOS Y FIGURAS
+%% ============================================================================
+\RequirePackage{graphicx}
+\RequirePackage{tikz}
+\RequirePackage{tikzpagenodes}
+\usetikzlibrary{
+  tikzmark,
+  calc,
+  shapes.geometric,
+  arrows,
+  backgrounds,
+  shadings,
+  shapes.arrows,
+  shapes.symbols,
+  shadows,
+  positioning,
+  fit,
+  automata,
+  patterns,
+  intersections
+}
+
+\RequirePackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\pgfplotsset{colormap/viridis}
+\usepgfplotslibrary{patchplots,groupplots,fillbetween,polar}
+\RequirePackage{pgfplotstable}
+
+% Gráficas circulares (pie charts)
+\RequirePackage{pgf-pie}
+
+% Optimización TikZ (deshabilitada por defecto para evitar problemas)
+% Para habilitarla, descomentar las siguientes líneas:
+% \usepgfplotslibrary{external}
+% \tikzexternalize[prefix=archivos/figuras-procesadas/]
+
+%% ============================================================================
+%% TABLAS
+%% ============================================================================
+\RequirePackage{longtable}
+\RequirePackage{booktabs}
+\RequirePackage{array}
+\RequirePackage{multirow}
+\RequirePackage{multicol}
+\RequirePackage{tabularx}
+\RequirePackage{colortbl}       % Para \rowcolors y colores en tablas
+% Fix para conflicto colortbl + multirow (evita números fantasma)
+\renewcommand\multirowsetup{}
+\RequirePackage{ragged2e}
+\RequirePackage{threeparttable} % Para tablas con notas al pie
+\RequirePackage{diagbox}        % Para celdas diagonales en encabezados
+\RequirePackage{tabularray}     % Tablas modernas (alternativa a multirow/multicolumn)
+
+% Tipos de columna personalizados
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+%% ============================================================================
+%% FIGURAS Y CAPTIONS
+%% ============================================================================
+\RequirePackage{subcaption}
+\RequirePackage{caption}
+\captionsetup{labelfont={bf,small},textfont=small}
+
+\RequirePackage{setspace}
+\setlength{\intextsep}{5mm}
+\RequirePackage{scalefnt}
+
+% Eliminar el punto entre numeración y texto
+\renewcommand*{\figureformat}{\figurename~\thefigure}
+\renewcommand*{\tableformat}{\tablename~\thetable}
+
+%% ============================================================================
+%% TEXTO Y POSICIONAMIENTO
+%% ============================================================================
+\RequirePackage{anyfontsize}
+\RequirePackage{textpos}
+\RequirePackage{mdframed}
+
+% Comando para subrayar con color
+\RequirePackage{soul}
+\newcommand{\hlc}[2][yellow]{{\sethlcolor{#1}\hl{#2}}}
+
+%% ============================================================================
+%% OTROS PAQUETES ÚTILES
+%% ============================================================================
+\RequirePackage{pdfpages}
+\RequirePackage{url}
+\RequirePackage[pdfborder={0 0 0}]{hyperref}
+\RequirePackage{hyperxmp}  % Metadatos XMP extendidos para PDF
+\RequirePackage{float}
+\RequirePackage{placeins}
+\RequirePackage{afterpage}
+\RequirePackage{rotating}
+
+% Comentarios TODO (desactivar con borrador=false)
+\ExplSyntaxOn
+\bool_if:NTF \g__eps_borrador_bool
+  {
+    \RequirePackage[textsize=tiny,spanish,shadow,textwidth=2cm]{todonotes}
+  }
+  {
+    \RequirePackage[disable]{todonotes}
+  }
+\ExplSyntaxOff
+
+%% ============================================================================
+%% GLOSARIOS Y ACRÓNIMOS
+%% ============================================================================
+\RequirePackage[acronym,toc,automake]{glossaries}
+
+% Estilo personalizado simple y robusto para acrónimos
+\newglossarystyle{modsuper}{%
+  \setglossarystyle{long}%
+  \renewcommand{\glsgroupskip}{}%
+}
+\renewcommand{\glsnamefont}[1]{\textbf{#1}}
+
+%% ============================================================================
+%% MATEMÁTICAS
+%% ============================================================================
+\RequirePackage{mathtools}
+\RequirePackage{amsthm}
+\RequirePackage{amsfonts}
+\RequirePackage{amssymb}
+\RequirePackage{bm}
+\RequirePackage{mathrsfs}
+\RequirePackage{nicefrac}
+
+% Soporte Unicode Math (Debe cargarse después de mathtools y otros paquetes ams)
+% Desactivamos comandos de mathtools que entran en conflicto con unicode-math para evitar warnings
+\let\underbracket\relax
+\let\overbracket\relax
+\let\dblcolon\relax
+\let\coloneqq\relax
+\let\Coloneqq\relax
+\let\eqqcolon\relax
+\RequirePackage{unicode-math}
+
+
+% Entorno para describir variables en ecuaciones
+\newenvironment{condiciones}[1][donde:]
+  {%
+   #1\tabularx{\textwidth-\widthof{#1}}[t]{
+     >{$}l<{$} @{}>{${}}c<{{}$}@{} >{\raggedright\arraybackslash}X
+   }%
+  }
+  {\endtabularx\\[\belowdisplayskip]}
+
+%% ============================================================================
+%% TEOREMAS Y DEFINICIONES
+%% ============================================================================
+\newtheorem{teorema}{Teorema}[chapter]
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{ejemplo}{Ejemplo}[chapter]
+\newtheorem{definicion}{Definición}[chapter]
+\newtheorem{definition}{Definition}[chapter]
+\newtheorem{lema}{Lema}[chapter]
+\newtheorem{corolario}{Corolario}[chapter]
+\newtheorem{proposicion}{Proposición}[chapter]
+
+%% ============================================================================
+%% CARGAR PAQUETES ADICIONALES
+%% ============================================================================
+% Los paquetes eps-portadas y eps-codigo se cargan desde el directorio sty/
+% El usuario debe incluir sty/ en el path de búsqueda en main.tex
+
+% Intentar cargar paquetes (se cargarán si están en el path)
+\IfFileExists{eps-portadas.sty}{%
+  \RequirePackage{eps-portadas}%
+}{}
+
+\IfFileExists{eps-codigo.sty}{%
+  \RequirePackage{eps-codigo}%
+}{}
+
+%% ============================================================================
+%% CONFIGURACIÓN DE HYPERREF Y SELECCIÓN DE IDIOMA (al final)
+%% ============================================================================
+
+% Definir comando auxiliar para seleccionar idioma (debe estar en ExplSyntax)
+\ExplSyntaxOn
+\cs_new_protected:Nn \__eps_seleccionar_idioma:
+  {
+    \str_case:VnF \g__eps_idioma_tl
+      {
+        {espanol} { \selectlanguage{spanish} }
+        {valenciano} { \selectlanguage{catalan} }
+        {ingles} { \selectlanguage{english} }
+      }
+      { \selectlanguage{spanish} } % Fallback
+  }
+% Wrapper para llamar desde fuera de ExplSyntax
+\NewDocumentCommand{\EPSseleccionarIdioma}{}{\__eps_seleccionar_idioma:}
+\ExplSyntaxOff
+
+\AtBeginDocument{%
+  % --- Seleccionar idioma según configuración ---
+  \EPSseleccionarIdioma
+  % --- Configurar biblatex según idioma ---
+  % Nota: biblatex requiere el nombre del idioma, no el código
+  % La configuración se hace en la carga del paquete con language=spanish
+  % por defecto. Para otros idiomas, el usuario puede usar
+  % \ExecuteBibliographyOptions{language=english} en el preámbulo.
+  % --- Metadatos del PDF ---
+  \hypersetup{
+    % --- Metadatos básicos ---
+    pdfauthor = {\EPSautor},
+    pdftitle = {\EPStitulo},
+    pdfsubject = {\EPStipoTrabajo},
+    pdfkeywords = {TFG, TFM, Universidad de Alicante, EPS, \EPStitulacion},
+    pdflang = {\EPSidiomaCodigo},
+    % --- Metadatos extendidos ---
+    pdfcopyright = {Copyright © \the\year\space \EPSautor. Todos los derechos reservados.},
+    pdfcontactemail = {\EPSautorEmail},
+    pdfpublisher = {Universidad de Alicante - Escuela Politécnica Superior},
+    pdfcontactcountry = {España},
+    pdfcontactcity = {Alicante},
+    % --- Información de la plantilla ---
+    pdfcreator = {LuaLaTeX con plantilla TFG-TFM EPS UA},
+    pdfsource = {https://github.com/jmrplens/TFG-TFM_EPS},
+    % --- Marcadores/Bookmarks ---
+    bookmarksnumbered = true,
+    bookmarksopen = true,
+    bookmarksopenlevel = 1,
+    % --- Visualización inicial ---
+    pdfpagemode = {UseOutlines},
+    pdfdisplaydoctitle = true,
+    % --- Apariencia de enlaces ---
+    colorlinks = true,
+    linkcolor = black,
+    citecolor = blue!50!black,
+    urlcolor = blue!70!black,
+  }
+}
+
+%% ============================================================================
+%% LOGOS POR DEFECTO
+%% ============================================================================
+\ExplSyntaxOn
+\tl_gset:Nn \g__eps_logo_facultad_tl {recursos/logos/universidad/LogoEPSNegro.pdf}
+\tl_gset:Nn \g__eps_logo_universidad_tl {recursos/logos/universidad/LogoUANegro.pdf}
+\tl_gset:Nn \g__eps_logo_universidad_portada_tl {recursos/logos/universidad/LogoUABlanco.pdf}
+
+\NewExpandableDocumentCommand{\EPSlogoFacultad}{}{\tl_use:N \g__eps_logo_facultad_tl}
+\NewExpandableDocumentCommand{\EPSlogoUniversidad}{}{\tl_use:N \g__eps_logo_universidad_tl}
+\NewExpandableDocumentCommand{\EPSlogoUniversidadPortada}{}{\tl_use:N \g__eps_logo_universidad_portada_tl}
+\ExplSyntaxOff
+
+\endinput

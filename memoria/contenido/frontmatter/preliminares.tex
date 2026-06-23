@@ -1,0 +1,70 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% PÁGINAS PRELIMINARES
+% Agradecimientos, resumen, dedicatoria, etc.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% =====================================================================
+%% DEDICATORIA (opcional)
+%% =====================================================================
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{flushright}
+  \textit{A Raúl Ruiz Flores, mi mejor amigo y compañero de universidad.}
+\end{flushright}
+\vspace*{\fill}
+\cleardoublepage
+
+%% =====================================================================
+%% AGRADECIMIENTOS (opcional)
+%% =====================================================================
+\chapter*{Agradecimientos}
+\addcontentsline{toc}{chapter}{Agradecimientos}
+
+Muchas gracias a mi familia y, sobre todo, a mi madre, por apoyarme tanto durante estos años de carrera. Nada de esto habría sido posible sin ella, que me insistió tantas veces en que terminara el TFG y me dio ánimos justo cuando menos me apetecía seguir.
+
+Muchas gracias a mi mejor amigo, Raúl Ruiz Flores, por todos estos años de amistad y compañerismo, por las risas en la universidad y por habernos lanzado juntos a todo lo que pudimos. Gracias, además, por toda la ayuda que me ha dado a lo largo de la carrera.
+
+Muchas gracias a mi hermano, por apoyarme incondicionalmente en todo, aunque no tuviera demasiada idea de lo que yo estaba haciendo.
+
+Muchas gracias a mis amigos de la carrera, con los que fui al hackathon, por todas esas risas y noches de estudio compartidas.
+
+Muchas gracias a mis tutores, Paco y Tamai, por estas dos etapas que hemos vivido, la de profesor-alumno y la de tutor-alumno. Gracias por lo atentos y cercanos que han sido conmigo y por el buen trato que he recibido en todo momento.
+
+Muchas gracias a mi grupo de amigos actual, que confió en que sería capaz de hacerlo y de terminar la carrera a pesar de los baches del camino.
+
+\cleardoublepage
+
+%% =====================================================================
+%% RESUMEN
+%% =====================================================================
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
+
+El aprendizaje federado permite entrenar modelos de forma colaborativa sin centralizar los datos, lo que resulta apropiado para escenarios distribuidos o con información sensible. Para construir este tipo de sistemas se recurre a \textit{frameworks} especializados, pero la variedad de herramientas disponibles dificulta decidir cuál conviene en cada caso, ya que cada una adopta decisiones de diseño distintas y puede comportarse de otra manera ante la misma carga de trabajo.
+
+Este Trabajo de Fin de Grado compara de forma experimental tres \textit{frameworks} de aprendizaje federado —Flower, NVIDIA FLARE y FedML— sobre un mismo escenario controlado: clasificación de imágenes con el conjunto CIFAR-10, una red ResNet-18 adaptada, el algoritmo \textit{Federated Averaging} (FedAvg) y una configuración \textit{cross-silo} horizontal. La evaluación se articula en tres ejes: el rendimiento cuantitativo del modelo (precisión, tiempo de ejecución y consumo de recursos), la usabilidad entendida como experiencia de desarrollo y la flexibilidad como propiedad arquitectónica.
+
+Los resultados muestran que, bajo idénticas condiciones, los tres \textit{frameworks} alcanzan precisiones muy similares (en torno al 90,7--92,0\,\%), de modo que la elección de la herramienta influye poco en la calidad del modelo y mucho en el coste de obtenerlo, en la experiencia de uso y en la estabilidad del modo concurrente. En usabilidad, Flower ofrece la puesta en marcha más sencilla, NVIDIA FLARE destaca por su trazabilidad a costa de una curva de aprendizaje elevada y FedML ocupa una posición intermedia. En flexibilidad, las tres herramientas obtienen una valoración equivalente y se diferencian sobre todo en su perfil cualitativo. El trabajo aporta así una comparación razonada y reproducible que orienta la selección de un \textit{framework} de aprendizaje federado en proyectos similares.
+
+\textbf{Palabras clave:} aprendizaje federado, Flower, NVIDIA FLARE, FedML, FedAvg, CIFAR-10, comparativa experimental.
+
+\cleardoublepage
+
+%% =====================================================================
+%% ABSTRACT (en inglés)
+%% =====================================================================
+\begin{otherlanguage}{english}
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+Federated learning makes it possible to train models collaboratively without centralising the data, which suits distributed scenarios or settings with sensitive information. Building such systems relies on specialised frameworks, but the range of available tools makes it hard to decide which one is appropriate in each case, since each adopts different design choices and may behave differently under the same workload.
+
+This Bachelor's Thesis carries out an experimental comparison of three federated learning frameworks —Flower, NVIDIA FLARE and FedML— on a single controlled scenario: image classification on the CIFAR-10 dataset, an adapted ResNet-18 network, the Federated Averaging (FedAvg) algorithm and a horizontal cross-silo setup. The evaluation is organised along three axes: the quantitative performance of the model (accuracy, execution time and resource usage), usability understood as the development experience, and flexibility as an architectural property.
+
+The results show that, under identical conditions, the three frameworks reach very similar accuracies (around 90.7--92.0\%), so the choice of tool has little effect on model quality and a large effect on the cost of obtaining it, on the user experience and on the stability of the concurrent mode. Regarding usability, Flower offers the most straightforward setup, NVIDIA FLARE stands out for its traceability at the cost of a steep learning curve, and FedML sits in an intermediate position. Regarding flexibility, the three tools obtain an equivalent score and differ mainly in their qualitative profile. The work thus provides a reasoned and reproducible comparison that guides the selection of a federated learning framework in similar projects.
+
+\textbf{Keywords:} federated learning, Flower, NVIDIA FLARE, FedML, FedAvg, CIFAR-10, experimental comparison.
+
+\end{otherlanguage}
+
+\cleardoublepage

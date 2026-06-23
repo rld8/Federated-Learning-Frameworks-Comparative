@@ -1,0 +1,332 @@
+\chapter{Resultados de usabilidad}\label{chap:usabilidad}
+
+Este capítulo aplica a los tres frameworks la rúbrica de usabilidad definida en el
+Capítulo~\ref{chap:metodologia}, organizada en torno a las cuatro dimensiones de la
+experiencia de uso \textit{useful}, \textit{usable}, \textit{desirable} y
+\textit{accessible}. A diferencia de la comparativa de rendimiento, que mide el
+comportamiento cuantitativo del modelo, y del análisis de flexibilidad, que describe la
+capacidad arquitectónica de cada herramienta para adaptarse a escenarios distintos del
+previsto, aquí se valora el coste y la experiencia de desarrollo: qué esfuerzo exigió
+poner en marcha cada framework, qué fricciones aparecieron durante la implementación y la
+depuración, y con qué claridad permitió trabajar. La descripción técnica de cada solución
+—arquitectura de archivos, adaptación del experimento y automatización— se detalla en el
+Capítulo~\ref{chap:implementacion}; este capítulo no la repite, sino que la interpreta
+desde el punto de vista del desarrollador.
+
+La valoración es una evaluación experta cualitativa aplicada por el autor, no un estudio
+de experiencia de usuario con participantes. Cada dimensión se puntúa en la escala de uno
+a cinco descrita en el Capítulo~\ref{chap:metodologia} y se acompaña de la evidencia que
+la justifica: pasos de instalación reales, errores encontrados y resueltos, claridad de
+los registros y de los mensajes de error, y barreras de entrada de la documentación. Para
+mitigar la subjetividad, los mismos subcriterios y la misma escala se aplican por igual a
+los tres frameworks, recogidos sobre un único equipo y un mismo flujo experimental.
+
+\section{Usabilidad de Flower}\label{sec:usab-flower}
+
+\subsection{Utilidad funcional (\textit{useful})}\label{sec:usab-flower-useful}
+
+Flower cubre por completo el caso de uso del estudio. Permitió implementar
+\textit{Federated Averaging} sobre CIFAR-10 con una ResNet-18 adaptada, ejecutar varios
+clientes mediante simulación, recoger métricas de entrenamiento y evaluación, y reproducir
+los experimentos a partir de una configuración declarativa. La separación entre la
+aplicación de cliente, la aplicación de servidor y la lógica de tarea encaja de forma
+natural con el patrón cliente-servidor del aprendizaje federado, de modo que cada
+responsabilidad del experimento tiene un lugar evidente en el proyecto. La única limitación
+funcional relevante desde la óptica del uso es que la evaluación federada permanece
+desactivada cuando la fracción de evaluación es nula, lo que obliga a apoyar la medición de
+la precisión en una evaluación centralizada en el servidor; no es un fallo, sino una
+decisión de diseño que conviene conocer de antemano para no interpretar como anómalo el
+aviso correspondiente.
+
+\subsection{Facilidad de uso (\textit{usable})}\label{sec:usab-flower-usable}
+
+La puesta en marcha de Flower fue de las más directas del estudio. La instalación se
+resolvió con un gestor de paquetes estándar y un conjunto reducido de dependencias, sin
+necesidad de recurrir a entornos especiales ni a versiones concretas del intérprete. La
+estructura del proyecto es compacta y predecible, y la configuración de cada experimento se
+concentra en un único fichero declarativo, lo que reduce el número de lugares donde
+intervenir para cambiar el número de rondas, la fracción de clientes o los hiperparámetros.
+
+Durante las primeras ejecuciones aparecieron incidencias de configuración, como la ausencia
+de una clave esperada por el experimento, que se manifestaban como errores claros y
+localizables. Estas incidencias eran atribuibles a la propia parametrización inicial y no al
+framework, y se corrigieron en una sola sesión de trabajo propagando la configuración donde
+correspondía. La fricción de uso más significativa apareció en el modo concurrente, basado
+en un planificador de procesos que mantiene actores vivos entre rondas y acumula presión de
+memoria; en el equipo de pruebas, con memoria limitada, esa acumulación condujo a un agotamiento
+de memoria que impidió completar las ejecuciones concurrentes y obligó a tratarlas como
+limitación experimental. En el modo secuencial, en cambio, el framework se comportó de forma
+estable y predecible.
+
+\subsection{Experiencia de desarrollo (\textit{desirable})}\label{sec:usab-flower-desirable}
+
+Como entorno de trabajo, Flower transmite una sensación de orden y limpieza. Su interfaz de
+programación se integra de forma idiomática con el ecosistema de PyTorch, de manera que el
+bucle de entrenamiento, la definición del modelo y la carga de datos se escriben de forma
+casi idéntica a un entrenamiento no federado, y solo la frontera de comunicación introduce
+conceptos específicos del framework. Esa cercanía reduce la carga cognitiva y aumenta la
+confianza al modificar el experimento. La contrapartida en la experiencia es que la capa de
+ejecución concurrente añade una complejidad que rompe esa sensación de control: cuando el
+planificador de procesos interviene, el comportamiento se vuelve menos transparente y la
+depuración de los problemas de memoria resulta menos inmediata que en el resto del flujo.
+
+\subsection{Accesibilidad (\textit{accessible})}\label{sec:usab-flower-accessible}
+
+Flower presenta una barrera de entrada baja. Su documentación es abundante y está orientada
+a casos prácticos, con ejemplos que sirven de punto de partida directo, y sus mensajes de
+registro durante la ejecución resultan legibles y suficientes para seguir la evolución de las
+rondas sin instrumentación adicional. Para una persona con conocimientos previos de PyTorch,
+el tiempo desde la instalación hasta la primera ejecución útil es corto. Las guías cubren con
+claridad la configuración básica, de modo que la mayor parte del esfuerzo inicial se dedica al
+experimento en sí y no a entender la herramienta.
+
+\subsection{Valoración de la usabilidad de Flower}\label{sec:usab-flower-valoracion}
+
+En conjunto, Flower es el framework más accesible y agradable de usar de los tres para el
+caso de estudio, con un coste de aprendizaje bajo y un flujo secuencial muy estable; su
+punto débil de usabilidad se concentra en el modo concurrente. La
+Tabla~\ref{tab:usab-flower} resume la valoración por dimensiones.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la usabilidad de Flower según las cuatro dimensiones de la
+  rúbrica (escala 1--5).}
+  \label{tab:usab-flower}
+  \begin{tabular}{llc}
+    \toprule
+    \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
+    \midrule
+    \textit{Useful}     & Cobertura funcional completa; evaluación federada opcional        & 5 \\
+    \textit{Usable}     & Instalación directa; estable en secuencial; concurrencia frágil   & 4 \\
+    \textit{Desirable}  & API limpia e idiomática con PyTorch; capa concurrente menos clara & 4 \\
+    \textit{Accessible} & Documentación práctica y abundante; logs legibles                 & 5 \\
+    \midrule
+    \textbf{Media}      &                                                                   & \textbf{4{,}5} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Usabilidad de NVIDIA FLARE}\label{sec:usab-flare}
+
+\subsection{Utilidad funcional (\textit{useful})}\label{sec:usab-flare-useful}
+
+NVIDIA FLARE cubre el caso de estudio y excede ampliamente sus necesidades. A través de una
+plantilla de trabajo que reproduce el patrón de dispersión y agregación equivalente a
+\textit{Federated Averaging}, permitió ejecutar el mismo experimento con CIFAR-10, la
+ResNet-18 adaptada y varios clientes simulados, registrar métricas por ronda y realizar una
+evaluación centralizada final sobre el conjunto de prueba. Su orientación hacia escenarios
+de producción aporta funcionalidades muy por encima de lo requerido, lo que en términos de
+utilidad es una ventaja, pero también explica que una parte del esfuerzo inicial se dedique
+a discernir qué subconjunto de sus capacidades es pertinente para una comparativa académica
+controlada.
+
+\subsection{Facilidad de uso (\textit{usable})}\label{sec:usab-flare-usable}
+
+La facilidad de uso es la dimensión más débil de NVIDIA FLARE y la que más diferencia su
+experiencia respecto a Flower. La instalación no fue inmediata: el primer intento sobre un
+entorno virtual con una versión muy reciente del intérprete falló durante la compilación de
+dependencias nativas, y solo se resolvió migrando a un entorno gestionado por Conda con una
+versión del intérprete contrastada, sobre la que se instalaron además los extras necesarios.
+Esta dependencia de una combinación concreta de versiones constituye ya una primera barrera.
+
+Una vez instalado, el framework exige asimilar un número considerable de conceptos propios
+—trabajo, espacio de trabajo, sitio, ejecutor, flujo de trabajo, persistor y agregador,
+entre otros— y una estructura de directorios extensa, de modo que la distancia entre instalar
+la herramienta y lanzar el experimento previsto es notable. La adaptación requirió resolver
+una sucesión de incidencias de naturaleza diversa: dependencias ausentes para la carga de
+datos, un agotamiento de memoria del sistema al preparar una prueba con muchos clientes que
+llegó a derribar la sesión gráfica del equipo, la selección incorrecta de dispositivo al
+invocar rutinas de la GPU cuando el entrenamiento debía realizarse en otro dispositivo, el
+cierre prematuro del agente de comunicación cuando el cliente esperaba mensajes de un trabajo
+ya finalizado, y errores derivados del parcheo automático de la configuración que llegaban a
+alterar el número de rondas o de clientes efectivos respecto al experimento planificado. Cada
+una de estas incidencias era resoluble, pero su acumulación sitúa la curva de aprendizaje
+claramente por encima de la del resto de herramientas evaluadas.
+
+\subsection{Experiencia de desarrollo (\textit{desirable})}\label{sec:usab-flare-desirable}
+
+La experiencia de desarrollo con NVIDIA FLARE es ambivalente. En su contra juega una
+depuración exigente: los fallos de un cliente pueden manifestarse de forma indirecta como
+errores de comunicación —pérdida del par, ausencia de latido o aborto de la tarea— que
+ocultan la causa real y obligan a inspeccionar varios artefactos antes de localizar el
+origen del problema. A su favor, el framework genera un conjunto muy completo de registros y
+artefactos por ejecución, con resúmenes, trazas, monitorización del sistema y registros de
+evaluación separados, lo que proporciona una trazabilidad experimental superior a la del
+resto de herramientas y transmite confianza una vez superada la fase de configuración. El
+resultado es una experiencia que recompensa la inversión de aprendizaje con rigor y
+reproducibilidad, pero que penaliza con dureza al desarrollador en las primeras fases.
+
+\subsection{Accesibilidad (\textit{accessible})}\label{sec:usab-flare-accessible}
+
+La accesibilidad de NVIDIA FLARE se ve condicionada por la profundidad del framework. La
+documentación es extensa y existe abundante material de referencia, pero la barrera de
+entrada es alta: empezar a producir resultados requiere un conocimiento previo no trivial de
+su modelo de ejecución, y algunos comandos o vías esperadas no coincidían con las
+efectivamente disponibles en la versión instalada, lo que obliga a contrastar la
+documentación con la herramienta real. Los mensajes de error, especialmente los relacionados
+con la comunicación entre procesos, no siempre son autoexplicativos para quien se inicia.
+Para un perfil con experiencia en sistemas distribuidos la documentación es valiosa, pero
+para una primera aproximación la facilidad de acceso es limitada.
+
+\subsection{Valoración de la usabilidad de NVIDIA FLARE}\label{sec:usab-flare-valoracion}
+
+NVIDIA FLARE es el framework más potente y trazable, pero también el más costoso de usar:
+combina una utilidad funcional sobresaliente con una facilidad de uso y una accesibilidad
+penalizadas por su complejidad y su curva de aprendizaje. La Tabla~\ref{tab:usab-flare}
+resume la valoración.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la usabilidad de NVIDIA FLARE según las cuatro dimensiones de la
+  rúbrica (escala 1--5).}
+  \label{tab:usab-flare}
+  \begin{tabular}{llc}
+    \toprule
+    \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
+    \midrule
+    \textit{Useful}     & Cobertura completa y capacidades muy por encima de lo requerido       & 5 \\
+    \textit{Usable}     & Instalación sensible a versiones; muchos conceptos; depuración costosa & 2 \\
+    \textit{Desirable}  & Trazabilidad excelente, pero depuración indirecta y exigente          & 3 \\
+    \textit{Accessible} & Documentación amplia con barrera de entrada alta; errores opacos      & 3 \\
+    \midrule
+    \textbf{Media}      &                                                                       & \textbf{3{,}25} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Usabilidad de FedML}\label{sec:usab-fedml}
+
+\subsection{Utilidad funcional (\textit{useful})}\label{sec:usab-fedml-useful}
+
+FedML cubre el caso de estudio y aporta una característica útil desde el punto de vista del
+uso: la disponibilidad de distintos backends de ejecución, uno para el modo secuencial y otro
+basado en paso de mensajes para el modo concurrente, bajo una misma configuración. Permitió
+ejecutar \textit{Federated Averaging} sobre CIFAR-10 con la ResNet-18 adaptada y los mismos
+hiperparámetros, así como obtener un \textit{baseline} repetido con varias semillas. La
+principal limitación funcional en términos de uso es que el modo concurrente no produjo una
+métrica de precisión final aprovechable en sus registros, lo que restringe su utilidad a la
+medición de tiempo y recursos y obliga a tenerlo en cuenta al planificar qué resultados puede
+sustentar cada modo.
+
+\subsection{Facilidad de uso (\textit{usable})}\label{sec:usab-fedml-usable}
+
+La facilidad de uso de FedML se sitúa en un punto intermedio. La instalación y la puesta en
+marcha no presentaron fricciones reseñables, y la configuración se gestiona mediante ficheros
+declarativos que centralizan los parámetros del experimento. La fricción se concentró en dos
+aspectos. El primero es la fiabilidad de la instrumentación: en varias ejecuciones la
+inicialización de la biblioteca de monitorización de la GPU falló por un desajuste entre la
+versión del controlador y la de la biblioteca, de modo que, aunque las métricas de
+aprendizaje seguían siendo válidas, las métricas de GPU de esas corridas no eran utilizables
+y debían marcarse como no disponibles en lugar de mezclarse con ceros. El segundo es la
+extracción de resultados: en el modo concurrente, los registros no siempre contenían la
+información necesaria de forma directa, y algunas ejecuciones terminaron por agotamiento de
+tiempo o sin recoger por completo los resultados, lo que exigió un trabajo de filtrado más
+cuidadoso que en Flower.
+
+\subsection{Experiencia de desarrollo (\textit{desirable})}\label{sec:usab-fedml-desirable}
+
+Como entorno de desarrollo, FedML resulta funcional y razonablemente cómodo. El mecanismo de
+extensión por herencia, que separa el entrenador del cliente y el agregador del servidor,
+ofrece puntos de intervención claros y una sensación de orden al adaptar el experimento. La
+experiencia se ve algo mermada por la menor pulcritud de los registros en determinados modos
+y por la necesidad de validar con cuidado qué corridas son aprovechables, lo que introduce una
+capa de verificación adicional sobre la salida del framework. El modo concurrente, basado en
+paso de mensajes, se mostró en algunas pruebas más estable que el de Flower, lo que mejora la
+percepción de robustez en ese escenario.
+
+\subsection{Accesibilidad (\textit{accessible})}\label{sec:usab-fedml-accessible}
+
+La accesibilidad de FedML es intermedia. Dispone de documentación y de ejemplos que permiten
+arrancar, pero parte de la configuración y, sobre todo, la interpretación y extracción de las
+métricas requieren un esfuerzo de lectura mayor que en Flower, y algunos comportamientos solo
+se comprenden tras inspeccionar los registros con detenimiento. No impone barreras de entrada
+tan altas como NVIDIA FLARE, pero tampoco alcanza la inmediatez de Flower para pasar de la
+instalación a un resultado limpio y bien documentado.
+
+\subsection{Valoración de la usabilidad de FedML}\label{sec:usab-fedml-valoracion}
+
+FedML ofrece una usabilidad correcta y equilibrada, sin la fricción de instalación de NVIDIA
+FLARE pero sin la inmediatez de Flower; sus puntos débiles son la fiabilidad de la
+instrumentación de GPU y la claridad de los registros en el modo concurrente. La
+Tabla~\ref{tab:usab-fedml} resume la valoración.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Valoración de la usabilidad de FedML según las cuatro dimensiones de la rúbrica
+  (escala 1--5).}
+  \label{tab:usab-fedml}
+  \begin{tabular}{llc}
+    \toprule
+    \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
+    \midrule
+    \textit{Useful}     & Cobertura completa; doble backend; concurrente sin precisión final & 4 \\
+    \textit{Usable}     & Instalación sin fricción; instrumentación de GPU y logs irregulares & 3 \\
+    \textit{Desirable}  & Extensión por herencia clara; verificación extra de resultados     & 3 \\
+    \textit{Accessible} & Documentación suficiente; extracción de métricas exigente          & 3 \\
+    \midrule
+    \textbf{Media}      &                                                                    & \textbf{3{,}25} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Comparativa de usabilidad}\label{sec:usab-comparativa}
+
+La Tabla~\ref{tab:usab-comparativa} reúne las doce puntuaciones de las cuatro dimensiones
+para los tres frameworks, lo que permite una lectura transversal de la usabilidad.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparativa de la valoración de usabilidad de los tres frameworks según las
+  cuatro dimensiones de la rúbrica (escala 1--5).}
+  \label{tab:usab-comparativa}
+  \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Dimensión} & \textbf{Flower} & \textbf{NVIDIA FLARE} & \textbf{FedML} \\
+    \midrule
+    \textit{Useful}     & 5 & 5 & 4 \\
+    \textit{Usable}     & 4 & 2 & 3 \\
+    \textit{Desirable}  & 4 & 3 & 3 \\
+    \textit{Accessible} & 5 & 3 & 3 \\
+    \midrule
+    \textbf{Media}      & \textbf{4{,}5} & \textbf{3{,}25} & \textbf{3{,}25} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+La lectura por dimensiones revela un patrón coherente. En utilidad funcional los tres
+frameworks obtienen valoraciones altas, ya que todos permiten cubrir el caso de estudio; las
+diferencias proceden de limitaciones puntuales, como la ausencia de precisión final en el
+modo concurrente de FedML. Es en la facilidad de uso donde la distancia es máxima: Flower
+ofrece una puesta en marcha directa y un flujo secuencial estable, FedML se sitúa en un punto
+intermedio condicionado por la fiabilidad de su instrumentación, y NVIDIA FLARE queda por
+detrás por su instalación sensible a versiones, su gran número de conceptos y su depuración
+costosa. En accesibilidad se reproduce la misma ordenación, con Flower claramente por delante
+gracias a una barrera de entrada baja y unos registros legibles. La dimensión de experiencia
+de desarrollo es la más matizada, porque la excelente trazabilidad de NVIDIA FLARE compensa
+parcialmente su dificultad y eleva su valoración por encima de lo que sugeriría su facilidad
+de uso aislada.
+
+De esta lectura se desprende una recomendación de uso dependiente del perfil del proyecto.
+Para prototipado rápido, docencia o trabajos en los que el tiempo desde la instalación hasta
+el primer resultado es crítico, Flower es la opción más usable. Para proyectos que prioricen
+la trazabilidad, la reproducibilidad rigurosa y la cercanía a un despliegue real, y que puedan
+asumir una curva de aprendizaje alta, NVIDIA FLARE compensa su coste de uso con la calidad de
+sus artefactos. FedML ocupa una posición intermedia adecuada cuando interesa disponer de
+varios backends de ejecución bajo una misma configuración, siempre que se asuma un trabajo
+adicional de verificación y extracción de métricas.
+
+\section{Síntesis}\label{sec:usab-sintesis}
+
+La evaluación de usabilidad responde al objetivo de comparar la experiencia práctica de uso
+de cada framework y confirma que la elección de una herramienta de aprendizaje federado no
+puede basarse únicamente en su rendimiento. Los tres frameworks resultaron funcionalmente
+aptos para el caso de estudio, pero ofrecieron experiencias de desarrollo marcadamente
+distintas: Flower destacó por su accesibilidad y su bajo coste de aprendizaje, NVIDIA FLARE
+por su trazabilidad a costa de una notable complejidad, y FedML por un equilibrio razonable
+con limitaciones concretas en la instrumentación y la extracción de resultados. Conviene
+recordar que estas valoraciones reflejan el juicio del autor como desarrollador sobre un único
+entorno de pruebas, por lo que deben interpretarse como una guía cualitativa y no como una
+medida absoluta; esta condición se recoge entre las amenazas a la validez del estudio. El
+capítulo siguiente analiza la flexibilidad de cada framework, un eje complementario que
+describe hasta qué punto cada herramienta permite adaptarse a escenarios distintos del
+previsto por defecto.
