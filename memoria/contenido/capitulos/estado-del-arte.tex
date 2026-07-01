@@ -1,5 +1,9 @@
 \chapter{Estado del arte}\label{chap:estado-arte}
 
+% Barrera de flotantes: evita que las tablas migren de sección. Si el paquete
+% placeins esta cargado se usa su \FloatBarrier; si no, se recurre a \clearpage.
+\providecommand{\FloatBarrier}{\clearpage}
+
 En el capítulo anterior se justificó por qué construir un sistema de aprendizaje
 federado obliga a apoyarse en \textit{frameworks} especializados. Este capítulo revisa el
 panorama de herramientas disponibles, explica con qué criterios se han seleccionado las
@@ -211,6 +215,7 @@ en los capítulos de resultados.
   \end{tabular}
 \end{table}
 
+\FloatBarrier
 \section{Estudios comparativos previos}\label{sec:comparativas-previas}
 
 Comparar \textit{frameworks} de aprendizaje federado no es una idea nueva, pero la mayoría

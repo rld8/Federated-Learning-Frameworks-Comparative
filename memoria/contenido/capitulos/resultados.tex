@@ -15,6 +15,17 @@
 % apartados de cada eje (rendimiento/usabilidad/flexibilidad) muestren su número.
 \setcounter{secnumdepth}{3}
 
+% Empaquetado de las páginas de flotantes: cuando varias figuras o tablas caen
+% juntas en una página, LaTeX las reparte con relleno vertical y deja demasiado
+% hueco en blanco entre ellas. Estos ajustes alinean los flotantes en la parte
+% superior y concentran el espacio sobrante al final de la página, evitando esos
+% huecos. Solo afectan a la maquetación, no al contenido.
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{12pt plus 0pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
+
 Este capítulo reúne los resultados experimentales de la comparación entre Flower,
 NVIDIA FLARE y FedML sobre el escenario común descrito en el capítulo de
 metodología, integrando los tres ejes de evaluación del trabajo: el rendimiento
@@ -145,6 +156,7 @@ se emplea en la comparación.
   Flower, el motor de simulación Ray ejecuta procesos hijo, por lo que esta cifra infravalora el
   consumo real de memoria del sistema.}
   \label{tab:flower-seq}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lcccccccccc}
     \toprule
     Exp. & Cli. & Ron. & Acc. & Loss & Tiempo (s) & GPU (MiB) & Util. (\%) & Energía (Wh) & Temp. (\textdegree C) & RAM (GiB) \\
@@ -156,7 +168,8 @@ se emplea en la comparación.
     e2-c8         & 8 & 10 & 0,7839 & 0,6314 & 1240  & 762  & 80,82 & 16,02  & 85 & 0,58 \\
     e3            & 8 & 20 & 0,8993 & 0,3301 & 5202  & 761  & 82,21 & 53,52  & 87 & 0,69 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 La Figura~\ref{fig:flower-conv} muestra la evolución de la precisión global del modelo por ronda
@@ -169,8 +182,8 @@ hasta finalizar con la precisión del 92{,}03\,\% recogida en la Tabla~\ref{tab:
   \centering
   \begin{tikzpicture}
     \begin{axis}[width=0.9\textwidth, height=6.2cm,
-      xlabel={Ronda}, ylabel={Precisión global}, xmin=0, ymin=0, ymax=1,
-      grid=major, legend pos=south east, mark size=1.5pt]
+      xlabel={Ronda}, ylabel={Precisión global}, xmin=0, xmax=21, ymin=0, ymax=1,
+      grid=major, legend pos=south east, mark size=1.2pt]
       \addplot[blue, thick, mark=*] coordinates {
         (0,0.1000)(1,0.1013)(2,0.6407)(3,0.8306)(4,0.8728)(5,0.8801)(6,0.8919)
         (7,0.8935)(8,0.8982)(9,0.9058)(10,0.9040)(11,0.9115)(12,0.9148)(13,0.9158)
@@ -265,6 +278,7 @@ Tabla~\ref{tab:usab-flower} resume la valoración por dimensiones.
   \caption{Valoración de la usabilidad de Flower según las cuatro dimensiones de la
   rúbrica (escala 1--5).}
   \label{tab:usab-flower}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llc}
     \toprule
     \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
@@ -276,7 +290,8 @@ Tabla~\ref{tab:usab-flower} resume la valoración por dimensiones.
     \midrule
     \textbf{Media}      &                                                                   & \textbf{4{,}5} \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 \subsection{Flexibilidad de Flower}\label{sec:flex-flower}
@@ -390,7 +405,7 @@ servidor.
 \subsubsection{Mini-experimento de flexibilidad}\label{subsec:flex-flower-mini}
 
 Para comprobar la sustitución de estrategias de forma controlada se definió una
-variante reducida del experimento e3, denominada \texttt{e3\_flex\_mini}, cuyos
+variante reducida del experimento e3, denominada \texttt{e3\_\allowbreak flex\_\allowbreak mini}, cuyos
 parámetros recoge la Tabla~\ref{tab:flex-flower-config}. La finalidad de esta
 prueba no era comparar el rendimiento de aprendizaje, sino demostrar que Flower
 permite cambiar la estrategia federada y la configuración de participación sin
@@ -438,6 +453,7 @@ cliente. La Tabla~\ref{tab:flex-flower-resultados} resume las métricas obtenida
   afectada por otras aplicaciones del equipo, y el pico reservado por PyTorch al
   proceso del cliente (\textit{GPU proc.}), métrica comparable entre estrategias.}
   \label{tab:flex-flower-resultados}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lcccrrcr}
     \toprule
     \textbf{Estrategia} & \textbf{Estado} & \textbf{Acc.} & \textbf{Loss} &
@@ -448,7 +464,8 @@ cliente. La Tabla~\ref{tab:flex-flower-resultados} resume las métricas obtenida
     FedAdam    & success & 0,1410 & 2,3401 & 124 & 757  & $\approx$289 & 1,252 \\
     FedAdagrad & success & 0,1000 & 18,7832 & 144 & 1623 & $\approx$289 & 1,123 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 Estos resultados no permiten concluir que una estrategia sea superior a otra, por
@@ -493,15 +510,15 @@ Aparte de lo ejecutado, la documentación oficial de Flower —consultada en su 
 un conjunto amplio de técnicas de flexibilidad que se valoran como evidencia
 documental. En el plano de la configuración y el control del servidor, se detallan
 cuatro vías de personalización de las estrategias: ajustar los parámetros de una
-estrategia existente (\texttt{fraction\_train}, \texttt{fraction\_evaluate},
-\texttt{min\_available\_nodes}); inyectar funciones de devolución como
-\texttt{evaluate\_fn} que el servidor ejecuta en momentos concretos; sobrescribir
-métodos internos como \texttt{configure\_train}, \texttt{aggregate\_fit} o
-\texttt{aggregate\_evaluate}; e implementar una estrategia nueva heredando de
+estrategia existente (\texttt{fraction\_\allowbreak train}, \texttt{fraction\_\allowbreak evaluate},
+\texttt{min\_\allowbreak available\_\allowbreak nodes}); inyectar funciones de devolución como
+\texttt{evaluate\_\allowbreak fn} que el servidor ejecuta en momentos concretos; sobrescribir
+métodos internos como \texttt{configure\_\allowbreak train}, \texttt{aggregate\_\allowbreak fit} o
+\texttt{aggregate\_\allowbreak evaluate}; e implementar una estrategia nueva heredando de
 \texttt{BaseStrategy}~\parencite{flowerDocs}. La misma documentación muestra cómo
 enviar configuraciones por ronda mediante \texttt{ConfigRecord} —por ejemplo, reducir
-progresivamente la tasa de aprendizaje leyendo \texttt{server\_round}— y cómo agregar
-métricas con criterios propios a través de \texttt{evaluate\_metrics\_aggr\_fn}, en
+progresivamente la tasa de aprendizaje leyendo \texttt{server\_\allowbreak round}— y cómo agregar
+métricas con criterios propios a través de \texttt{evaluate\_\allowbreak metrics\_\allowbreak aggr\_\allowbreak fn}, en
 lugar del promedio ponderado por número de ejemplos. Los clientes, sin estado por
 defecto, pueden conservar información entre rondas mediante \texttt{Context.state}, lo
 que habilita técnicas como el \textit{checkpointing} en el cliente.
@@ -509,8 +526,8 @@ que habilita técnicas como el \textit{checkpointing} en el cliente.
 Una pieza distintiva son los \textit{Mods}, funciones que interceptan los mensajes
 entre servidor y cliente para transformarlos sin alterar la lógica principal; se
 encadenan en un orden definido y permiten, por ejemplo, recortar gradientes
-(\texttt{fixedclipping\_mod}, \texttt{adaptiveclipping\_mod}) o limitar el tamaño de
-los mensajes (\texttt{message\_size\_mod})~\parencite{flowerDocs}. Sobre esta
+(\texttt{fixedclipping\_\allowbreak mod}, \texttt{adaptiveclipping\_\allowbreak mod}) o limitar el tamaño de
+los mensajes (\texttt{message\_\allowbreak size\_\allowbreak mod})~\parencite{flowerDocs}. Sobre esta
 base se construye la privacidad diferencial, documentada en modo preliminar en tres
 variantes —central del lado del servidor, central del lado del cliente y local
 mediante \texttt{LocalDpMod}—, todas con recorte y ruido gaussiano configurables, a las
@@ -594,8 +611,10 @@ criterios F1--F10, distinguiendo el tipo de evidencia que sustenta cada
 puntuación. Los criterios de personalización del modelo y los datos (F1), del
 entrenamiento local (F2), de la estrategia de agregación (F3) y de los algoritmos
 federados disponibles (F4) se valoran con la máxima puntuación a partir de
-evidencia experimental directa, al igual que los modos de ejecución y despliegue
-(F6), la integración con herramientas externas (F7) y la reproducibilidad (F10).
+evidencia experimental directa, lo mismo que la reproducibilidad (F10). Los modos
+de ejecución y despliegue (F6) y la integración con herramientas externas (F7)
+alcanzan también la máxima puntuación, en su caso combinando evidencia experimental
+y documental.
 El soporte de aprendizaje asíncrono (F5), la seguridad y privacidad (F8) y la
 modificación de la arquitectura federada (F9) reciben puntuación parcial por estar
 respaldados solo por documentación; en el caso de F5, mediante interfaces de bajo
@@ -655,9 +674,9 @@ flexibilidad.
 \subsection{Rendimiento de NVIDIA FLARE}\label{sec:resultados-nvflare}
 
 La Tabla~\ref{tab:nvflare-seq} resume los resultados secuenciales de NVIDIA FLARE. La
-configuración principal alcanza un 91{,}58\,\% de precisión, muy cerca de Flower, pero con el
-tiempo de ejecución más alto del estudio (algo más de tres horas) y la utilización media de GPU
-más elevada. El comportamiento en escalabilidad reproduce de nuevo la caída de precisión al
+configuración principal alcanza un 91{,}14\,\% de precisión, muy cerca de Flower, pero con el
+tiempo de ejecución más alto del estudio (algo más de tres horas) y una utilización media de GPU
+elevada. El comportamiento en escalabilidad reproduce de nuevo la caída de precisión al
 aumentar el número de clientes, y el experimento de participación parcial obtiene un buen
 resultado (90{,}86\,\%) completando las veinte rondas.
 
@@ -668,49 +687,47 @@ resultado (90{,}86\,\%) completando las veinte rondas.
   \caption{Resultados de NVIDIA FLARE en modo secuencial. La RAM corresponde al proceso
   principal.}
   \label{tab:nvflare-seq}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lcccccccccc}
     \toprule
     Exp. & Cli. & Ron. & Acc. & Loss & Tiempo (s) & GPU (MiB) & Util. (\%) & Energía (Wh) & Temp. (\textdegree C) & RAM (GiB) \\
     \midrule
     e0    & 10 & 30 & 0,8260 & 0,5564 & 5758  & 466 & 56,90 & 51,76  & 83 & 2,2 \\
-    e1    & 5  & 20 & 0,9158 & 0,2866 & 11074 & 466 & 91,33 & 131,15 & 87 & 2,1 \\
+    e1    & 5  & 20 & 0,9114 & 0,3058 & 12304 & 466 & 83,47 & 138,51 & 87 & 2,0 \\ % e1 reejecutado 25/06 con evaluacion centralizada por ronda; RAM del run nuevo pendiente de confirmar
     e2-c4 & 4  & 10 & 0,8145 & 0,5796 & 1320  & 468 & 75,97 & 14,84  & 66 & 1,8 \\
     e2-c5 & 5  & 10 & 0,8167 & 0,5510 & 1404  & 466 & 71,06 & 15,08  & 66 & 1,8 \\
     e2-c8 & 8  & 10 & 0,7713 & 0,6605 & 1617  & 470 & 61,80 & 16,01  & 68 & 2,0 \\
     e3    & 8  & 20 & 0,9086 & 0,3277 & 5593  & 470 & 87,59 & 70,61  & 87 & 2,0 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
-A diferencia de Flower, NVIDIA FLARE no realiza una evaluación centralizada del modelo global en
-cada ronda, sino únicamente al final de la ejecución, por lo que no se dispone de una curva de
-convergencia \emph{global} por ronda equivalente a la de la Figura~\ref{fig:flower-conv}. No
-obstante, el simulador sí registra en cada ronda la validación local de los clientes, cuya media
-permite trazar la evolución del entrenamiento. La Figura~\ref{fig:nvflare-conv} muestra esa
-precisión de validación local media por ronda en el experimento principal: la convergencia es
-rápida en las primeras rondas y se estabiliza en torno al 83--84\,\% a partir de la ronda diez.
-Conviene subrayar que esta curva refleja la validación local sobre las particiones de cada
-cliente, no la evaluación centralizada sobre el conjunto de prueba completo; por eso su valor
-final (84{,}29\,\%) queda por debajo de la precisión centralizada final del modelo global
-(91{,}58\,\%), medida sobre las 10\,000 imágenes de prueba.
+En el flujo estándar, NVIDIA FLARE no evalúa el modelo global de forma centralizada en cada
+ronda, sino solo al final de la ejecución. Para obtener una curva de convergencia equivalente a
+la de Flower y FedML, el experimento principal se ejecutó guardando el modelo global agregado de
+cada ronda; esos veinte modelos se evaluaron después de forma centralizada sobre las 10\,000
+imágenes del conjunto de prueba completo. La Figura~\ref{fig:nvflare-conv} muestra esa precisión
+centralizada por ronda: la convergencia es rápida en las primeras rondas y se estabiliza por
+encima del 90\,\% a partir de la ronda diez, hasta una precisión final del 91{,}14\,\%. Esta es la
+ejecución del experimento principal cuyas métricas se recogen en la Tabla~\ref{tab:nvflare-seq}.
 
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}
     \begin{axis}[width=0.9\textwidth, height=6.2cm,
-      xlabel={Ronda}, ylabel={Precisión (validación local media)}, ymin=0, ymax=1,
+      xlabel={Ronda}, ylabel={Precisión global}, xmin=0, xmax=21, ymin=0, ymax=1,
       grid=major, legend pos=south east, mark size=1.2pt]
       \addplot[orange, thick, mark=*] coordinates {
-        (1,0.6491)(2,0.7239)(3,0.7596)(4,0.7806)(5,0.7970)(6,0.8079)(7,0.8132)
-        (8,0.8152)(9,0.8153)(10,0.8232)(11,0.8274)(12,0.8350)(13,0.8231)(14,0.8247)
-        (15,0.8271)(16,0.8264)(17,0.8376)(18,0.8434)(19,0.8317)(20,0.8429)};
+        (1,0.1040)(2,0.6757)(3,0.8339)(4,0.8661)(5,0.8804)(6,0.8855)(7,0.8946)
+        (8,0.8997)(9,0.8970)(10,0.9036)(11,0.9028)(12,0.9039)(13,0.9091)(14,0.9098)
+        (15,0.9109)(16,0.9133)(17,0.9172)(18,0.9167)(19,0.9184)(20,0.9114)};
       \addlegendentry{NVIDIA FLARE e1 (principal)}
     \end{axis}
   \end{tikzpicture}
-  \caption{Evolución por ronda de la precisión de validación local media de NVIDIA FLARE en el
-  experimento principal. Se trata de la media de la validación local de los clientes en cada
-  ronda, no de una evaluación centralizada del modelo global; la precisión centralizada final
-  fue del 91{,}58\,\%.}
+  \caption{Convergencia de la precisión centralizada del modelo global de NVIDIA FLARE en el
+  experimento principal, evaluando sobre el conjunto de prueba completo el modelo agregado de
+  cada ronda.}
   \label{fig:nvflare-conv}
 \end{figure}
 
@@ -798,6 +815,7 @@ resume la valoración.
   \caption{Valoración de la usabilidad de NVIDIA FLARE según las cuatro dimensiones de la
   rúbrica (escala 1--5).}
   \label{tab:usab-flare}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llc}
     \toprule
     \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
@@ -809,7 +827,8 @@ resume la valoración.
     \midrule
     \textbf{Media}      &                                                                       & \textbf{3{,}25} \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 \subsection{Flexibilidad de NVIDIA FLARE}\label{sec:flex-nvflare}
@@ -819,7 +838,7 @@ y compatible con flujos de trabajo de aprendizaje automático ya existentes, con
 una orientación que abarca desde la simulación local hasta el despliegue en
 producción y en el borde~\parencite{roth2022nvflare,nvflareWelcome}. La evaluación
 experimental de su flexibilidad se apoya en un paquete de cinco ejecuciones de la
-variante reducida del experimento e3, la misma \texttt{e3\_flex\_mini} empleada con
+variante reducida del experimento e3, la misma \texttt{e3\_\allowbreak flex\_\allowbreak mini} empleada con
 Flower (apartado~\ref{subsec:flex-flower-mini}), con ocho clientes totales,
 cuatro por ronda, tres rondas, una época local, tamaño de lote 32, tasa de
 aprendizaje 0,02 y semilla 42, en modo secuencial con un único hilo del simulador.
@@ -832,12 +851,12 @@ conclusiones experimentales se refieren únicamente a los archivos incluidos en 
 La flexibilidad de NVIDIA FLARE descansa en su modelo de configuración modular. La
 unidad de ejecución es el \textit{job}, que describe por completo un experimento
 mediante ficheros de configuración de servidor y de cliente
-(\texttt{config\_fed\_server.conf} y \texttt{config\_fed\_client.conf}), en los que
+(\texttt{config\_\allowbreak fed\_\allowbreak server.conf} y \texttt{config\_\allowbreak fed\_\allowbreak client.conf}), en los que
 cada elemento del sistema se declara como un componente con su ruta de clase y sus
 argumentos de construcción~\parencite{nvflareComponents}. Al desplegar el job, el
 servidor y los clientes analizan esos ficheros e instancian dinámicamente los
 componentes declarados, registrándolos en el bucle de eventos del framework; cada
-componente se identifica con un \texttt{component\_id} que permite referenciarlo
+componente se identifica con un \texttt{component\_\allowbreak id} que permite referenciarlo
 desde otros componentes o workflows~\parencite{nvflareComponents}. Este diseño es
 el que permite sustituir un agregador, un persistor, un \textit{executor}, un
 generador de objetos compartibles (\textit{Shareable}) o un filtro modificando la
@@ -861,7 +880,7 @@ introdujeron tres cambios de naturaleza distinta. En primer lugar, la selección
 estrategia se trasladó al cliente, que admite los valores \texttt{fedavg},
 \texttt{fedprox}, \texttt{fedadam} y \texttt{fedadagrad} mediante un argumento de
 línea de órdenes que, por defecto, toma su valor de la variable de entorno
-\texttt{TFG\_FL\_STRATEGY}. En segundo lugar, FedProx se implementó en el
+\texttt{TFG\_\allowbreak FL\_\allowbreak STRATEGY}. En segundo lugar, FedProx se implementó en el
 entrenamiento local: cuando la estrategia es \texttt{fedprox} y el coeficiente
 proximal es positivo, el entrenamiento añade un término que penaliza la desviación
 de los pesos locales respecto al modelo global recibido al inicio de la tarea,
@@ -876,8 +895,8 @@ configuración del servidor sustituyendo el generador de compartibles por defect
 fuente requerido por este generador, como ilustra el
 Código~\ref{cod:nvflare-fedopt}. Este generador actualiza el modelo global mediante
 un optimizador de PyTorch —y, opcionalmente, un planificador de tasa de
-aprendizaje— cuyos argumentos incluyen \texttt{optimizer\_args},
-\texttt{lr\_scheduler\_args}, \texttt{source\_model} y
+aprendizaje— cuyos argumentos incluyen \texttt{optimizer\_\allowbreak args},
+\texttt{lr\_\allowbreak scheduler\_\allowbreak args}, \texttt{source\_\allowbreak model} y
 \texttt{device}~\parencite{nvflareFedopt}. En consecuencia, FedAdam y FedAdagrad no
 son recetas independientes, sino configuraciones de FedOpt que se obtienen
 seleccionando \mintinline{text}{torch.optim.Adam} o
@@ -900,7 +919,7 @@ Una precaución metodológica relevante surgió con el dispositivo de ejecución
 todos los ficheros de configuración del cliente aparece \texttt{-{}-device cuda},
 pero en la ejecución de FedAdam en CPU el propio cliente seleccionó CPU porque
 \mintinline{python}{torch.cuda.is_available()} devolvió falso al lanzarse con
-\texttt{CUDA\_VISIBLE\_DEVICES} vacío. Por ello, el dispositivo realmente empleado
+\texttt{CUDA\_\allowbreak VISIBLE\_\allowbreak DEVICES} vacío. Por ello, el dispositivo realmente empleado
 debe leerse del registro de ejecución y no del fichero de configuración, criterio
 que se ha seguido al elaborar la Tabla~\ref{tab:flex-nvflare-resultados}.
 
@@ -912,7 +931,7 @@ Gather}, en el que el servidor distribuye los pesos iniciales, los clientes
 entrenan localmente y devuelven sus pesos, y el sistema los agrega por promedio
 ponderado~\parencite{nvflareAlgorithms}. A partir de esa base, FedProx finalizó las
 tres rondas y los registros confirmaron \texttt{strategy=fedprox} con un coeficiente
-proximal \texttt{fedprox\_mu=0,001} activo durante el entrenamiento. FedAdagrad
+proximal \texttt{fedprox\_\allowbreak mu=0,001} activo durante el entrenamiento. FedAdagrad
 también completó las tres rondas como FedOpt real —y no como mera etiqueta— porque
 la configuración del servidor incorporaba el generador
 \mintinline{text}{PTFedOptModelShareableGenerator} y el registro mostraba las
@@ -943,7 +962,7 @@ El caso de FedAdam exige una lectura cuidadosa. La estrategia llegó a configura
 realmente mediante FedOpt con \mintinline{text}{torch.optim.Adam}, pero su ejecución
 en GPU abortó durante el paso de actualización del servidor
 (\mintinline{python}{torch.optim.Adam.step()}) con un error de inicialización de
-CUDA, registrado como \texttt{FATAL\_SYSTEM\_ERROR}. Para aislar el problema, la
+CUDA, registrado como \texttt{FATAL\_\allowbreak SYSTEM\_\allowbreak ERROR}. Para aislar el problema, la
 prueba se repitió en CPU, donde FedAdam completó las tres rondas; esta ejecución
 valida FedAdam como estrategia configurable, pero su duración (1280~s) es muy
 superior precisamente por entrenarse en CPU, de modo que no debe mezclarse con la
@@ -959,9 +978,9 @@ lógica de actualización del servidor mediante configuración y componentes. Im
 además una cautela de interpretación: la validez de FedAdagrad y FedAdam no se
 sustenta en el nombre de la ejecución, sino en la presencia del generador FedOpt y
 del optimizador del servidor en los registros. Del mismo modo, el valor
-\texttt{fedprox\_mu=0,001} que aparece en la configuración no implica que FedProx se
+\texttt{fedprox\_\allowbreak mu=0,001} que aparece en la configuración no implica que FedProx se
 aplique a todas las estrategias: en FedAdagrad y FedAdam el entrenamiento imprime
-\texttt{fedprox\_mu=0,0}, porque el término proximal solo se activa cuando la
+\texttt{fedprox\_\allowbreak mu=0,0}, porque el término proximal solo se activa cuando la
 estrategia es FedProx.
 
 De esta experiencia se desprende un contraste claro entre ambos frameworks.
@@ -976,8 +995,8 @@ ejercicio práctico conlleva una complejidad de configuración mayor.
 Como en el caso de Flower, varias capacidades relevantes no se ejecutaron en los
 experimentos y se valoran únicamente como evidencia documental. La documentación
 oficial las articula en torno a las \textit{Job Recipes}, una API de alto nivel que
-encapsula un trabajo federado exponiendo solo los parámetros clave —\texttt{min\_clients},
-\texttt{num\_rounds}, modelo y \textit{script} de entrenamiento— y ocultando la
+encapsula un trabajo federado exponiendo solo los parámetros clave —\texttt{min\_\allowbreak clients},
+\texttt{num\_\allowbreak rounds}, modelo y \textit{script} de entrenamiento— y ocultando la
 complejidad de controladores y \textit{workflows}~\parencite{nvflareRecipes}. Estas
 recetas se ejecutan sobre tres entornos intercambiables: \texttt{SimEnv} simula los
 clientes en procesos locales, \texttt{PocEnv} los lanza como procesos separados en la
@@ -1003,7 +1022,7 @@ soporte documental parcial.
 En materia de seguridad y privacidad, la documentación es notablemente extensa.
 NVIDIA FLARE implementa la privacidad mediante un mecanismo general de filtros que
 procesan los objetos compartibles antes o después de la comunicación, configurables en
-la receta como \texttt{task\_data\_filters} o \texttt{task\_result\_filters}. Soporta
+la receta como \texttt{task\_\allowbreak data\_\allowbreak filters} o \texttt{task\_\allowbreak result\_\allowbreak filters}. Soporta
 privacidad diferencial a nivel de muestra mediante la integración de DP-SGD con Opacus
 —controlada por los parámetros \texttt{epsilon} y \texttt{delta}— y filtros de DP local
 como \texttt{PercentilePrivacy}, que comparte solo las diferencias de pesos por encima
@@ -1055,15 +1074,17 @@ La Tabla~\ref{tab:flex-nvflare-score} recoge la valoración sobre los criterios
 F1--F10, con el mismo convenio aplicado a Flower: puntuación máxima cuando existe
 evidencia experimental directa, puntuación parcial cuando la capacidad solo consta
 en la documentación y puntuación nula cuando no se identifica soporte. NVIDIA FLARE
-obtiene la máxima puntuación en personalización del modelo y los datos (F1), del
-entrenamiento local (F2), de la estrategia de agregación (F3) y de los algoritmos
-federados disponibles (F4), todos respaldados por las ejecuciones, así como en los
-modos de ejecución y despliegue (F6), la integración con herramientas externas (F7)
-y la reproducibilidad (F10). El aprendizaje asíncrono (F5) recibe puntuación parcial,
+obtiene la máxima puntuación en la personalización del entrenamiento local (F2) y en
+la estrategia de agregación (F3) a partir de evidencia experimental directa, y en la
+personalización del modelo y los datos (F1), los algoritmos federados disponibles
+(F4), los modos de ejecución y despliegue (F6), la integración con herramientas
+externas (F7) y la reproducibilidad (F10) combinando evidencia experimental y
+documental. El aprendizaje asíncrono (F5) recibe puntuación parcial,
 al igual que en Flower: NVIDIA FLARE lo documenta de forma explícita mediante FedBuff,
-orientado al escenario de borde, lo que constituye un soporte experimental del mismo
-nivel que el de la \textit{Driver API} y \textit{Flower Next} de Flower, sin que la
-diferencia de mecanismo altere la puntuación. La seguridad y privacidad (F8) y la
+orientado al escenario de borde, con un nivel de soporte equivalente al de la
+\textit{Driver API} y \textit{Flower Next} de Flower, en ambos casos respaldado solo por
+la documentación y no validado en los experimentos; la diferencia de mecanismo no altera
+la puntuación. La seguridad y privacidad (F8) y la
 modificación de la arquitectura federada (F9) reciben también puntuación parcial por
 estar respaldadas solo documentalmente.
 
@@ -1146,38 +1167,32 @@ la misma configuración.
   \end{tabular}
 \end{table}
 
-FedML registra la precisión de prueba centralizada en cada ronda de comunicación. A diferencia
-de Flower y NVIDIA FLARE, cuyas curvas de convergencia se trazaron sobre el experimento
-principal (e1), para FedML se representa el experimento de referencia (e0) por ser el de mayor
-número de rondas (treinta), lo que ofrece la traza de convergencia más detallada del
-\textit{framework} (Figura~\ref{fig:fedml-conv}); esta elección, motivada por la disponibilidad
-de la serie completa, debe tenerse en cuenta al comparar las tres curvas de convergencia
-(Figuras~\ref{fig:flower-conv}, \ref{fig:nvflare-conv} y~\ref{fig:fedml-conv}), que no son
-directamente comparables entre sí: corresponden a configuraciones distintas (e1 en Flower y NVIDIA
-FLARE, e0 en FedML) y, además, representan magnitudes diferentes —precisión global del modelo en
-Flower, validación local media de los clientes en NVIDIA FLARE y precisión de prueba centralizada
-en FedML—, por lo que cada una debe leerse como la evolución interna de su herramienta y no como
-una comparación directa entre frameworks. La curva muestra una mejora sostenida a lo largo de las treinta
-rondas, sin la estabilización temprana observada en Flower, coherente con una configuración de
-solo dos épocas locales por ronda que avanza de forma más gradual.
+FedML registra la precisión de prueba centralizada del modelo global en cada ronda de
+comunicación. La Figura~\ref{fig:fedml-conv} muestra esa curva para el experimento principal
+(e1), la misma configuración empleada en las curvas de Flower y NVIDIA FLARE. Con ello, las tres
+curvas de convergencia (Figuras~\ref{fig:flower-conv}, \ref{fig:nvflare-conv}
+y~\ref{fig:fedml-conv}) corresponden ya al mismo experimento (e1) y representan la misma
+magnitud —la precisión del modelo global agregado evaluado de forma centralizada sobre el
+conjunto de prueba completo al final de cada ronda—, por lo que son directamente comparables
+entre sí. En las tres se reproduce el mismo patrón: un ascenso muy rápido en las primeras rondas
+y una estabilización posterior por encima del 90\,\%, con diferencias finales reducidas entre los
+tres \textit{frameworks}.
 
 \begin{figure}[htbp]
   \centering
   \begin{tikzpicture}
     \begin{axis}[width=0.9\textwidth, height=6.2cm,
-      xlabel={Ronda}, ylabel={Precisión de prueba}, xmin=0, xmax=30, ymin=0, ymax=1,
+      xlabel={Ronda}, ylabel={Precisión global}, xmin=0, xmax=21, ymin=0, ymax=1,
       grid=major, legend pos=south east, mark size=1.2pt]
       \addplot[red, thick, mark=*] coordinates {
-        (0,0.2567)(1,0.4224)(2,0.4992)(3,0.5291)(4,0.5795)(5,0.6047)(6,0.6343)
-        (7,0.6618)(8,0.6769)(9,0.6878)(10,0.6923)(11,0.7125)(12,0.7262)(13,0.7408)
-        (14,0.7484)(15,0.7540)(16,0.7674)(17,0.7694)(18,0.7786)(19,0.7850)(20,0.7902)
-        (21,0.7977)(22,0.8018)(23,0.8090)(24,0.8109)(25,0.8134)(26,0.8219)(27,0.8219)
-        (28,0.8231)(29,0.8320)};
-      \addlegendentry{FedML e0 (referencia)}
+        (1,0.2901)(2,0.7324)(3,0.8095)(4,0.8358)(5,0.8554)(6,0.8659)(7,0.8784)
+        (8,0.8826)(9,0.8837)(10,0.8900)(11,0.8964)(12,0.8990)(13,0.8965)(14,0.9010)
+        (15,0.9042)(16,0.9044)(17,0.9033)(18,0.9073)(19,0.9063)(20,0.9071)};
+      \addlegendentry{FedML e1 (principal)}
     \end{axis}
   \end{tikzpicture}
-  \caption{Convergencia de la precisión de prueba de FedML en el experimento de referencia
-  (treinta rondas completas).}
+  \caption{Convergencia de la precisión centralizada del modelo global de FedML en el experimento
+  principal, evaluada sobre el conjunto de prueba completo al final de cada ronda.}
   \label{fig:fedml-conv}
 \end{figure}
 
@@ -1278,6 +1293,7 @@ Tabla~\ref{tab:usab-fedml} resume la valoración.
   \caption{Valoración de la usabilidad de FedML según las cuatro dimensiones de la rúbrica
   (escala 1--5).}
   \label{tab:usab-fedml}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{llc}
     \toprule
     \textbf{Dimensión} & \textbf{Síntesis de la evidencia} & \textbf{Puntuación} \\
@@ -1289,7 +1305,8 @@ Tabla~\ref{tab:usab-fedml} resume la valoración.
     \midrule
     \textbf{Media}      &                                                                    & \textbf{3{,}25} \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 \subsection{Flexibilidad de FedML}\label{sec:flex-fedml}
@@ -1309,13 +1326,13 @@ comprobación funcional y no una comparación de rendimiento.
 
 \subsubsection{Configuración y componentes personalizados}\label{subsec:flex-fedml-config}
 
-La configuración de FedML se apoya en un fichero \texttt{fedml\_config.yaml}
-estructurado en secciones (\texttt{common\_args}, \texttt{data\_args},
-\texttt{model\_args}, \texttt{train\_args}, \texttt{device\_args},
-\texttt{comm\_args} y \texttt{tracking\_args}), donde se declaran los parámetros
-federados como \texttt{federated\_optimizer}, \texttt{client\_num\_in\_total},
-\texttt{client\_num\_per\_round}, \texttt{comm\_round}, \texttt{epochs},
-\texttt{batch\_size}, \texttt{client\_optimizer} y \texttt{learning\_rate}~\parencite{fedmlSimApi}.
+La configuración de FedML se apoya en un fichero \texttt{fedml\_\allowbreak config.yaml}
+estructurado en secciones (\texttt{common\_\allowbreak args}, \texttt{data\_\allowbreak args},
+\texttt{model\_\allowbreak args}, \texttt{train\_\allowbreak args}, \texttt{device\_\allowbreak args},
+\texttt{comm\_\allowbreak args} y \texttt{tracking\_\allowbreak args}), donde se declaran los parámetros
+federados como \texttt{federated\_\allowbreak optimizer}, \texttt{client\_\allowbreak num\_\allowbreak in\_\allowbreak total},
+\texttt{client\_\allowbreak num\_\allowbreak per\_\allowbreak round}, \texttt{comm\_\allowbreak round}, \texttt{epochs},
+\texttt{batch\_\allowbreak size}, \texttt{client\_\allowbreak optimizer} y \texttt{learning\_\allowbreak rate}~\parencite{fedmlSimApi}.
 Esta organización permitió variar clientes, rondas, épocas e hiperparámetros entre
 ejecuciones sin reescribir la aplicación.
 
@@ -1340,8 +1357,8 @@ integración.
 La prueba de flexibilidad consistió en ejecutar cuatro estrategias modificando
 únicamente la configuración, manteniendo constantes el conjunto de datos, el
 modelo y el resto de hiperparámetros. FedAvg y FedProx se seleccionan asignando
-\texttt{federated\_optimizer} a \texttt{"FedAvg"} o \texttt{"FedProx"}, mientras que
-FedAdam y FedAdagrad se obtienen mediante \texttt{federated\_optimizer:\ "FedOpt"}
+\texttt{federated\_\allowbreak optimizer} a \texttt{"FedAvg"} o \texttt{"FedProx"}, mientras que
+FedAdam y FedAdagrad se obtienen mediante \texttt{federated\_\allowbreak optimizer:\ "FedOpt"}
 combinado con un optimizador de servidor \texttt{Adam} o \texttt{Adagrad}, tal como
 ilustra el Código~\ref{cod:fedml-config}. Durante las primeras pruebas, las
 variantes FedOpt fallaban porque FedML esperaba el atributo \texttt{ci} en los
@@ -1417,7 +1434,7 @@ bind}), lanzamiento y gestión de trabajos y clústeres (\texttt{fedml launch},
 \texttt{fedml cluster}, \texttt{fedml run}), y gestión y despliegue de modelos como
 servicios de inferencia (\texttt{fedml model})~\parencite{fedmlExamples}. En el plano de
 programación, expone una API de Python con una llamada de una línea
-(\texttt{fedml.run\_simulation()}) y una API más explícita de varias líneas que
+(\texttt{fedml.run\_\allowbreak simulation()}) y una API más explícita de varias líneas que
 inicializa dispositivo, datos y modelo y ejecuta la federación mediante
 \texttt{SimulatorMPI} o las clases \texttt{Client}/\texttt{Server} envueltas por
 \texttt{FedMLRunner}~\parencite{fedmlSimApi}.
@@ -1425,7 +1442,7 @@ inicializa dispositivo, datos y modelo y ejecuta la federación mediante
 En cuanto al catálogo algorítmico, el simulador Parrot enumera implementaciones de
 referencia como FedOpt, FedNova, FedGKT, aprendizaje federado descentralizado, vertical
 y jerárquico, FedNAS y \textit{Split Learning}, seleccionables cambiando el campo
-\texttt{federated\_optimizer}~\parencite{fedmlSimOverview,fedmlSimApi}, y el módulo de
+\texttt{federated\_\allowbreak optimizer}~\parencite{fedmlSimOverview,fedmlSimApi}, y el módulo de
 seguridad declara compatibilidad con optimizadores como FedAvg, FedSGD, FedOpt, FedProx,
 FedGKT y FedNova~\parencite{fedmlSecurity}. A este catálogo se añaden la analítica
 federada, que calcula estadísticas distribuidas como promedios o percentiles mediante un
@@ -1443,7 +1460,7 @@ fortaleza documental está en la simulación de ataques y defensas mediante
 \texttt{FedMLAttacker} y \texttt{FedMLDefender}, con ataques de tipo bizantino,
 \textit{label flipping} y reemplazo de modelo, y defensas como recorte de norma, Krum,
 mediana geométrica o FoolsGold, activables desde el fichero de configuración con
-\texttt{enable\_attack} y \texttt{enable\_defense}~\parencite{fedmlSecurity}, además de un
+\texttt{enable\_\allowbreak attack} y \texttt{enable\_\allowbreak defense}~\parencite{fedmlSecurity}, además de un
 ejemplo de agregación segura basada en computación multiparte~\parencite{fedmlExamples}.
 En cambio, en las páginas revisadas no figura una integración de privacidad diferencial o
 cifrado homomórfico comparable a la de NVIDIA FLARE, por lo que su valoración en este
@@ -1535,7 +1552,7 @@ secuencial, que es el que ofrece resultados de aprendizaje equiparables.
 
 La Figura~\ref{fig:comp-acc} compara la precisión final por experimento. En el experimento
 principal (e1) los tres \textit{frameworks} quedan muy próximos, encabezados por Flower
-(92{,}03\,\%), seguido de NVIDIA FLARE (91{,}58\,\%) y FedML (90{,}71\,\%). Las diferencias son
+(92{,}03\,\%), seguido de NVIDIA FLARE (91{,}14\,\%) y FedML (90{,}71\,\%). Las diferencias son
 mayores en los experimentos de menor duración: en escalabilidad, FedML obtiene precisiones algo
 inferiores, especialmente con ocho clientes. En participación parcial (e3) las diferencias entre
 \textit{frameworks} son reducidas: NVIDIA FLARE alcanza el 90{,}86\,\%, Flower el 89{,}93\,\% y
@@ -1551,7 +1568,7 @@ Flower en una posición intermedia entre NVIDIA FLARE y FedML en esta configurac
       legend style={at={(0.5,-0.18)}, anchor=north, legend columns=-1,
         /tikz/every even column/.append style={column sep=12pt}},
       enlarge x limits=0.12, ymajorgrids]
-      \addplot coordinates {(e0,0.8260)(e1,0.9158)(e2-c4,0.8145)(e2-c5,0.8167)(e2-c8,0.7713)(e3,0.9086)};
+      \addplot coordinates {(e0,0.8260)(e1,0.9114)(e2-c4,0.8145)(e2-c5,0.8167)(e2-c8,0.7713)(e3,0.9086)};
       \addplot coordinates {(e0,0.8784)(e1,0.9203)(e2-c4,0.8451)(e2-c5,0.8277)(e2-c8,0.7839)(e3,0.8993)};
       \addplot coordinates {(e0,0.8320)(e1,0.9071)(e2-c4,0.7893)(e2-c5,0.7697)(e2-c8,0.7115)(e3,0.8895)};
       \legend{NVIDIA FLARE, Flower, FedML}
@@ -1565,9 +1582,10 @@ Flower en una posición intermedia entre NVIDIA FLARE y FedML en esta configurac
 
 La Figura~\ref{fig:comp-tiempo} compara la duración. Los experimentos con muchas épocas locales
 (e1 y e3) dominan el tiempo total, como era de esperar. En el experimento principal, los tres
-\textit{frameworks} quedan en el mismo orden de magnitud temporal: NVIDIA FLARE completa la
-ejecución en 11074~s, FedML en 11304~s y Flower en 11864~s, de modo que NVIDIA FLARE y FedML son
-prácticamente equivalentes y Flower queda algo por detrás. En los experimentos cortos de
+\textit{frameworks} quedan en el mismo orden de magnitud temporal: FedML completa la
+ejecución en 11304~s, Flower en 11864~s y NVIDIA FLARE en 12304~s, de modo que las tres
+herramientas resultan muy próximas, con FedML ligeramente por delante y NVIDIA FLARE como la más
+lenta en esta configuración. En los experimentos cortos de
 escalabilidad los tres \textit{frameworks} quedan en el mismo orden de magnitud, en torno a
 veinte minutos. Estas diferencias de tiempo deben leerse junto con la
 Tabla~\ref{tab:entornos}: como cada \textit{framework} se ejecutó con versiones
@@ -1581,8 +1599,9 @@ validez que ya se recoge en la Sección~\ref{sec:alcance-limitaciones}.
     \begin{axis}[ybar, bar width=5pt, width=0.95\textwidth, height=6.5cm,
       symbolic x coords={e0,e1,e2-c4,e2-c5,e2-c8,e3}, xtick=data,
       ymin=0, ylabel={Tiempo de ejecución (s)}, legend pos=north east,
+      scaled y ticks=false, yticklabel style={/pgf/number format/.cd, fixed, 1000 sep={}},
       enlarge x limits=0.12, ymajorgrids]
-      \addplot coordinates {(e0,5758)(e1,11074)(e2-c4,1320)(e2-c5,1404)(e2-c8,1617)(e3,5593)};
+      \addplot coordinates {(e0,5758)(e1,12304)(e2-c4,1320)(e2-c5,1404)(e2-c8,1617)(e3,5593)};
       \addplot coordinates {(e0,3615)(e1,11864)(e2-c4,1196)(e2-c5,1216)(e2-c8,1240)(e3,5202)};
       \addplot coordinates {(e0,3447)(e1,11304)(e2-c4,1419)(e2-c5,1243)(e2-c8,1267)(e3,5857)};
       \legend{NVIDIA FLARE, Flower, FedML}
@@ -1628,8 +1647,9 @@ energéticas válidas en todos los experimentos secuenciales principales. En e0,
 estimada (48{,}10\,Wh) queda próxima a la de Flower (46{,}31\,Wh) y NVIDIA FLARE (51{,}76\,Wh). El
 consumo energético sigue de cerca al tiempo de ejecución y a la utilización de GPU: los
 experimentos largos con muchas épocas locales (e1 y e3) concentran el mayor gasto. En el
-experimento principal (e1), FedML presenta el valor más alto (140{,}40\,Wh), ligeramente por
-encima de Flower (137{,}18\,Wh) y NVIDIA FLARE (131{,}15\,Wh). En participación parcial (e3),
+experimento principal (e1), FedML presenta el valor más alto (140{,}40\,Wh), seguido muy de cerca
+por NVIDIA FLARE (138{,}51\,Wh) y Flower (137{,}18\,Wh), con los tres prácticamente empatados. En
+participación parcial (e3),
 Flower obtiene el consumo más bajo (53{,}52\,Wh), mientras que NVIDIA FLARE y FedML quedan
 prácticamente empatados, con 70{,}61\,Wh y 70{,}97\,Wh respectivamente.
 
@@ -1640,7 +1660,7 @@ prácticamente empatados, con 70{,}61\,Wh y 70{,}97\,Wh respectivamente.
       symbolic x coords={e0,e1,e2-c4,e2-c5,e2-c8,e3}, xtick=data,
       ymin=0, ylabel={Energía estimada (Wh)}, legend pos=north east,
       enlarge x limits=0.12, ymajorgrids]
-      \addplot coordinates {(e0,51.76)(e1,131.15)(e2-c4,14.84)(e2-c5,15.08)(e2-c8,16.01)(e3,70.61)};
+      \addplot coordinates {(e0,51.76)(e1,138.51)(e2-c4,14.84)(e2-c5,15.08)(e2-c8,16.01)(e3,70.61)};
       \addplot coordinates {(e0,46.31)(e1,137.18)(e2-c4,14.92)(e2-c5,15.57)(e2-c8,16.02)(e3,53.52)};
       \addplot coordinates {(e0,48.10)(e1,140.40)(e2-c4,13.12)(e2-c5,15.80)(e2-c8,16.87)(e3,70.97)};
       \legend{NVIDIA FLARE, Flower, FedML}
@@ -1837,7 +1857,11 @@ pequeñas.
     x tick label style={rotate=45, anchor=east, font=\scriptsize},
     title style={font=\small},
     enlarge x limits=0.14, ymajorgrids,
-    nodes near coords, every node near coord/.append style={font=\tiny, rotate=90, anchor=west},
+    enlarge y limits={upper, value=0.18},
+    scaled y ticks=false,
+    nodes near coords,
+    every node near coord/.append style={font=\tiny, anchor=south,
+      /pgf/number format/.cd, fixed, fixed zerofill=false, use comma, 1000 sep={}},
     /pgf/number format/.cd, use comma, 1000 sep={},
   }
 }
@@ -1857,7 +1881,7 @@ y la utilización de GPU permanece alta en todas las configuraciones.
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0, ymax=1]
+      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0]
         \addplot coordinates {(e0,0.8784)(e1,0.9203)(e2-c4,0.8451)(e2-c5,0.8277)(e2-c8,0.7839)(e3,0.8993)};
       \end{axis}
     \end{tikzpicture}
@@ -1923,7 +1947,7 @@ y la utilización de GPU permanece alta en todas las configuraciones.
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0, ymax=100]
+      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0]
         \addplot coordinates {(e0,82.91)(e1,85.4)(e2-c4,83.57)(e2-c5,82.67)(e2-c8,80.82)(e3,82.21)};
       \end{axis}
     \end{tikzpicture}
@@ -1954,8 +1978,8 @@ de ejecución y la energía vuelven a concentrarse en los experimentos largos e1
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0, ymax=1]
-        \addplot coordinates {(e0,0.826)(e1,0.9158)(e2-c4,0.8145)(e2-c5,0.8167)(e2-c8,0.7713)(e3,0.9086)};
+      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0]
+        \addplot coordinates {(e0,0.826)(e1,0.9114)(e2-c4,0.8145)(e2-c5,0.8167)(e2-c8,0.7713)(e3,0.9086)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}\hfill
@@ -1963,7 +1987,7 @@ de ejecución y la energía vuelven a concentrarse en los experimentos largos e1
     \centering
     \begin{tikzpicture}
       \begin{axis}[metricbar, title={Pérdida}, ylabel={Loss}, ymin=0]
-        \addplot coordinates {(e0,0.5564)(e1,0.2866)(e2-c4,0.5796)(e2-c5,0.551)(e2-c8,0.6605)(e3,0.3277)};
+        \addplot coordinates {(e0,0.5564)(e1,0.3058)(e2-c4,0.5796)(e2-c5,0.551)(e2-c8,0.6605)(e3,0.3277)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}
@@ -1977,7 +2001,7 @@ de ejecución y la energía vuelven a concentrarse en los experimentos largos e1
     \centering
     \begin{tikzpicture}
       \begin{axis}[metricbar, title={Tiempo de ejecución}, ylabel={Tiempo (s)}, ymin=0]
-        \addplot coordinates {(e0,5758)(e1,11074)(e2-c4,1320)(e2-c5,1404)(e2-c8,1617)(e3,5593)};
+        \addplot coordinates {(e0,5758)(e1,12304)(e2-c4,1320)(e2-c5,1404)(e2-c8,1617)(e3,5593)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}\hfill
@@ -1985,7 +2009,7 @@ de ejecución y la energía vuelven a concentrarse en los experimentos largos e1
     \centering
     \begin{tikzpicture}
       \begin{axis}[metricbar, title={Energía estimada}, ylabel={Energía (Wh)}, ymin=0]
-        \addplot coordinates {(e0,51.76)(e1,131.15)(e2-c4,14.84)(e2-c5,15.08)(e2-c8,16.01)(e3,70.61)};
+        \addplot coordinates {(e0,51.76)(e1,138.51)(e2-c4,14.84)(e2-c5,15.08)(e2-c8,16.01)(e3,70.61)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}
@@ -2020,8 +2044,8 @@ de ejecución y la energía vuelven a concentrarse en los experimentos largos e1
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0, ymax=100]
-        \addplot coordinates {(e0,56.9)(e1,91.33)(e2-c4,75.97)(e2-c5,71.06)(e2-c8,61.8)(e3,87.59)};
+      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0]
+        \addplot coordinates {(e0,56.9)(e1,83.47)(e2-c4,75.97)(e2-c5,71.06)(e2-c8,61.8)(e3,87.59)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}\hfill
@@ -2051,7 +2075,7 @@ las tres herramientas (en torno a 414--416~MiB) en este modo.
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0, ymax=1]
+      \begin{axis}[metricbar, title={Precisión}, ylabel={Acc.}, ymin=0]
         \addplot coordinates {(e0,0.832)(e1,0.9071)(e2-c4,0.7893)(e2-c5,0.7697)(e2-c8,0.7115)(e3,0.8895)};
       \end{axis}
     \end{tikzpicture}
@@ -2117,7 +2141,7 @@ las tres herramientas (en torno a 414--416~MiB) en este modo.
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0, ymax=100]
+      \begin{axis}[metricbar, title={Utilización de GPU}, ylabel={Util. (\%)}, ymin=0]
         \addplot coordinates {(e0,95.23)(e1,86.29)(e2-c4,86.33)(e2-c5,86.62)(e2-c8,85.15)(e3,87.09)};
       \end{axis}
     \end{tikzpicture}
@@ -2136,7 +2160,8 @@ las tres herramientas (en torno a 414--416~MiB) en este modo.
 
 \subsection{Valores máximos y mínimos entre frameworks}\label{sec:max-min}
 
-Las siguientes figuras resumen, para tres métricas representativas, el valor máximo y
+Las Figuras~\ref{fig:maxmin-gpu}, \ref{fig:maxmin-acc} y~\ref{fig:maxmin-ram} resumen,
+para tres métricas representativas, el valor máximo y
 mínimo que alcanzó cada \textit{framework} a lo largo de todos los experimentos secuenciales,
 indicando bajo cada barra el experimento en el que se registró. En estas figuras, NVFLARE abrevia NVIDIA FLARE. Cuando el extremo se repitió en
 varios experimentos, se enumeran todos.
@@ -2148,7 +2173,9 @@ varios experimentos, se enumeran todos.
     x tick label style={align=center, font=\scriptsize},
     title style={font=\small},
     enlarge x limits=0.30, ymajorgrids,
-    nodes near coords, every node near coord/.append style={font=\scriptsize},
+    enlarge y limits={upper, value=0.18},
+    scaled y ticks=false,
+    nodes near coords, every node near coord/.append style={font=\scriptsize, anchor=south},
     /pgf/number format/.cd, use comma, 1000 sep={},
   }
 }
@@ -2180,15 +2207,15 @@ varios experimentos, se enumeran todos.
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[cmpbar, title={Máximo}, ylabel={Precisión}, ymin=0, xticklabels={{{Flower\\(e1)}},{{NVFLARE\\(e1)}},{{FedML\\(e1)}}}, ymax=1]
-        \addplot coordinates {(Flower,0.9203)(NVFLARE,0.9158)(FedML,0.9071)};
+      \begin{axis}[cmpbar, title={Máximo}, ylabel={Precisión}, ymin=0, xticklabels={{{Flower\\(e1)}},{{NVFLARE\\(e1)}},{{FedML\\(e1)}}}]
+        \addplot coordinates {(Flower,0.9203)(NVFLARE,0.9114)(FedML,0.9071)};
       \end{axis}
     \end{tikzpicture}
   \end{minipage}\hfill
   \begin{minipage}{0.48\textwidth}
     \centering
     \begin{tikzpicture}
-      \begin{axis}[cmpbar, title={Mínimo}, ylabel={Precisión}, ymin=0, xticklabels={{{Flower\\(e2-c8)}},{{NVFLARE\\(e2-c8)}},{{FedML\\(e2-c8)}}}, ymax=1]
+      \begin{axis}[cmpbar, title={Mínimo}, ylabel={Precisión}, ymin=0, xticklabels={{{Flower\\(e2-c8)}},{{NVFLARE\\(e2-c8)}},{{FedML\\(e2-c8)}}}]
         \addplot coordinates {(Flower,0.7839)(NVFLARE,0.7713)(FedML,0.7115)};
       \end{axis}
     \end{tikzpicture}
@@ -2233,7 +2260,7 @@ una lectura conjunta del comportamiento de cada herramienta.
 
 En el plano del rendimiento, en modo secuencial los tres \textit{frameworks} alcanzan
 precisiones muy similares en el experimento principal (en torno al 90,7--92,0\,\%: Flower
-92{,}03\,\%, NVIDIA FLARE 91{,}58\,\% y FedML 90{,}71\,\%), lo que confirma que, bajo
+92{,}03\,\%, NVIDIA FLARE 91{,}14\,\% y FedML 90{,}71\,\%), lo que confirma que, bajo
 idénticas condiciones de datos, modelo e hiperparámetros, la elección de la herramienta
 influye poco en la calidad del modelo y mucho en el coste de obtenerlo. Las diferencias
 más claras aparecen en el tiempo de ejecución, en la utilización de GPU y, sobre todo,
